@@ -36,7 +36,9 @@ Varianty:
 **Pozor – Financování RD:** stránka teď vyžaduje přihlášení, ale data čte
 z Google Sheetu sdíleného „kdokoli s odkazem". ID sheetu je ve veřejném kódu,
 takže data samotná chráněná nejsou. Řešení: přesunout data do Supabase,
-nebo sheet zneveřejnit a číst ho přes Google účet. Čeká na rozhodnutí.
+nebo sheet zneveřejnit a číst ho přes Google účet.
+**Rozhodnuto (30. 10. 2026): nechat, jak je** – zeď jen na stránce, sheet
+zůstává sdílený odkazem.
 
 ## 2. Zůstane Excel primárním zdrojem? – ROZHODNUTO
 
