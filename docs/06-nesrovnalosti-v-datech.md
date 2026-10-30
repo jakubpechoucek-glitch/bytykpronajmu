@@ -13,6 +13,8 @@ je vyřešit nebo potvrdit.
 | 4 | `CAGR` | IRR portfolia nezahrnuje nájmy | doplnit celkové IRR |
 | 5 | `Yield-*` | IRR po celých letech, ne XIRR | XIRR s daty |
 | 6 | `Yield-*` | legenda IRR nemá pásmo 9–10 % | hranice 4 / 6 / 9 / 12 % |
+| 7a | `CAGR` | nákup bytu Kbely je v roce 2019 (skutečně 6/2020) a Chabry 2 v roce 2020 (skutečně 12/2021) → CAGR obou výrazně podhodnocený | přesná data |
+| 7b | `Yield-*` | pořizovací cena v IRR stojí v řádku nad prvním rokem → nákup o rok dřív, IRR podhodnocené | XIRR s daty |
 | 7 | karty | datum odhadu se liší (Karlín 1/2026, ostatní 4/2025), ale CAGR počítá s rokem 2025 u všech | počítat z přesného data odhadu |
 
 ## Data
@@ -32,3 +34,14 @@ je vyřešit nebo potvrdit.
 | 19 | `odpisy` | u bytu Chabry vychází 1. rok odpisu na 2014, byt ale pořízen 2015; u Karlína a Chabry chybí v listu roky před 2021 |
 | 20 | `KATASTR` | prázdný list – co tam mělo být? |
 | 21 | karty | hypertextové odkazy (mapa, fotogalerie, smlouvy) – ověřit, že vedou na správná místa |
+
+## Jak byly vyřešeny při importu (30. 10. 2026)
+
+- Měsíční nájemné převzato z listů `Yield-*` (skutečně zaplacené částky po
+  měsících), smlouvy z karet. Roční součty souhlasí s Excelem.
+- Č. 13 (Brandýs): konec smlouvy opraven na 30. 9. 2026, poznámka u smlouvy.
+- Smlouvy bez data konce (Karlín 1–4): konec dopočten den před další smlouvou.
+- Hypotéky Karlín a Chabry označeny jako splacené.
+- Inflace 2010 (v Excelu chybí) doplněna 1,5 % (ČSÚ).
+- Ostatní nesrovnalosti (č. 8–12, 14–21) zůstávají v datech, jak byly. Opravit
+  je lze přímo na webu.

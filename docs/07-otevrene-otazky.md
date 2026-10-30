@@ -18,30 +18,35 @@ Technická omezení, ze kterých návrh vychází:
   tedy na **jednom originu**. Přihlášení uložené v prohlížeči proto vidí
   všechny tyto weby. Aplikace na `*.onrender.com` jsou jiný origin.
 
-Návrh (čeká na potvrzení, viz otázky 1a–1c):
+Varianty:
 
 | Varianta | Jak | + | − |
 |---|---|---|---|
 | **A) Supabase Auth + databáze** (doporučeno) | přihlášení jménem (e-mailem) a heslem na Rozcestníku; data bytů v databázi Supabase s pravidly „čte jen přihlášený"; stránky zůstávají na GitHub Pages | zdarma, žádná vlastní doména ani server, skutečná ochrana dat, SSO mezi všemi weby na github.io zadarmo | weby na Render potřebují přihlášení zvlášť (nebo předání tokenu); HTML stránek samotné zůstává veřejné (bez dat) |
 | **B) Cloudflare Access + vlastní doména** | všechny weby přesunout na subdomény (`byty.domena.cz`, …), Cloudflare před ně postaví přihlašovací zeď | chrání celé weby včetně HTML, bez úprav kódu, jedno přihlášení pro všechno | potřeba doména (~250 Kč/rok), přihlášení kódem z e-mailu nebo Google účtem, ne vlastním jménem a heslem |
 
-### Otevřené dílčí otázky
+**Rozhodnuto (30. 10. 2026):**
 
-- **1a)** Kdo bude mít přístup (jen majitel / rodina / účetní)? Mají všichni
-  vidět všechno, nebo jen něco?
-- **1b)** Varianta A, nebo B?
-- **1c)** Které další weby z Rozcestníku mají jít za zeď
-  (např. `assets_dashboard`)?
+- Varianta **A – Supabase**, přihlášení e-mailem a heslem nebo účtem Google.
+- Přístup: celá rodina (4 lidé), všichni vidí a upravují vše.
+- Za zeď jde i **Financování RD** (`assets_dashboard`).
+- Repa zůstávají veřejná, data v nich nejsou.
+- Postup nastavení: [08-nastaveni-supabase.md](08-nastaveni-supabase.md).
 
-## 2. Zůstane Excel primárním zdrojem?
+**Pozor – Financování RD:** stránka teď vyžaduje přihlášení, ale data čte
+z Google Sheetu sdíleného „kdokoli s odkazem". ID sheetu je ve veřejném kódu,
+takže data samotná chráněná nejsou. Řešení: přesunout data do Supabase,
+nebo sheet zneveřejnit a číst ho přes Google účet. Čeká na rozhodnutí.
 
-Pokud ano → import se pouští opakovaně a aplikace je jen „pohled".
-Pokud ne → po importu se data udržují v aplikaci.
+## 2. Zůstane Excel primárním zdrojem? – ROZHODNUTO
+
+Ne. Excel byl jen na jednorázový import, dál se vše eviduje na webu.
 
 ## 3. Interpolace hodnoty v čase
 
-Lineární (jako dnes v Excelu) vs. geometrická (konzistentní s CAGR) vs.
-po bodech, pokud se budou evidovat historické odhady.
+Zatím **lineárně mezi body** (pořízení a jednotlivé odhady). Při jednom
+odhadu je to totéž co Excel, s více odhady se křivka zpřesňuje. Alternativa:
+geometricky (konzistentní s CAGR).
 
 ## 4. Náklady
 

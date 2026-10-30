@@ -1,8 +1,12 @@
 # Byty k pronájmu
 
 Evidence a finanční přehled investičních bytů určených k pronájmu.
-Projekt nahrazuje (a později doplňuje) dosavadní Excel **„Karty bytů.xlsx"**
-(Dropbox: `/Data z Dellu/Nemovitosti/Karty bytů.xlsx`).
+Webová aplikace nahrazuje dosavadní Excel **„Karty bytů.xlsx"**
+(Dropbox: `/Data z Dellu/Nemovitosti/Karty bytů.xlsx`). Excel posloužil
+k jednorázovému importu, dál se vše eviduje a upravuje přímo na webu.
+
+- Web: https://jakubpechoucek-glitch.github.io/bytykpronajmu/ (jen pro přihlášené členy rodiny)
+- Ukázka se smyšlenými daty: https://jakubpechoucek-glitch.github.io/bytykpronajmu/?demo
 
 ## Cíl
 
@@ -35,22 +39,40 @@ Projekt nahrazuje (a později doplňuje) dosavadní Excel **„Karty bytů.xlsx"
 | [docs/04-financni-ukazatele.md](docs/04-financni-ukazatele.md) | Vzorce: cena/m², CAGR, yield, IRR, odpisy |
 | [docs/05-aplikace.md](docs/05-aplikace.md) | Návrh obrazovek a technického řešení |
 | [docs/06-nesrovnalosti-v-datech.md](docs/06-nesrovnalosti-v-datech.md) | Chyby a nejasnosti nalezené v Excelu |
-| [docs/07-otevrene-otazky.md](docs/07-otevrene-otazky.md) | Rozhodnutí, která je potřeba udělat |
+| [docs/07-otevrene-otazky.md](docs/07-otevrene-otazky.md) | Rozhodnutí a otevřené otázky |
+| [docs/08-nastaveni-supabase.md](docs/08-nastaveni-supabase.md) | Jednorázové nastavení databáze a přihlášení |
+
+## Struktura
+
+```
+index.html            aplikace (přehled · detail bytu · finance)
+css/app.css
+js/finance.js         výpočty (CAGR, yield, XIRR, odpisy, upozornění) – bez DOM
+js/data.js            úložiště: Supabase, nebo paměť (?demo)
+js/demo-data.js       smyšlená ukázková data
+js/app.js             obrazovky a editace
+supabase/schema.sql   tabulky + pravidla přístupu (RLS)
+tools/import_excel.py import Excelu → SQL (výstup necommitovat)
+tools/test_finance.js testy výpočtů: node tools/test_finance.js
+```
+
+Přihlášení zajišťuje společný skript `rozcestnik/auth.js`
+(repo [rozcestnik](https://github.com/jakubpechoucek-glitch/rozcestnik)).
 
 ## Ochrana dat
 
-Repozitář je **veřejný**. Do gitu proto nepatří osobní údaje nájemníků
-(jména, e-maily, telefony), čísla účtů, smlouvy ani přesné finanční údaje.
-Skutečná data drží `data/` (v `.gitignore`) nebo externí úložiště – viz
-[docs/07-otevrene-otazky.md](docs/07-otevrene-otazky.md).
+Repozitář je **veřejný**, kód neobsahuje žádná data. Skutečná data jsou
+v databázi Supabase a číst/zapisovat je smí jen přihlášený člen rodiny
+(e-mail v tabulce `clenove`). Ověřuje to databáze, ne stránka. Do gitu
+nepatří osobní údaje nájemníků ani vygenerovaný `import.sql` (`data/`,
+`*.sql` mimo `supabase/` jsou v `.gitignore`).
 
 ## Stav
 
 - [x] Rozbor Excelu a dokumentace
-- [x] Rozhodnutí: data za přihlášením, jedno přihlášení na Rozcestníku
-- [ ] Volba technického řešení přihlášení (Supabase / Cloudflare Access)
-- [ ] Import dat z Excelu
-- [ ] Přehled všech bytů
-- [ ] Detail bytu
-- [ ] Finanční ukazatele a grafy
-- [ ] Dlaždice v [Rozcestníku](https://github.com/jakubpechoucek-glitch/rozcestnik)
+- [x] Rozhodnutí: data za přihlášením, jedno přihlášení na Rozcestníku (Supabase, rodina 4 lidé)
+- [x] Databáze, pravidla přístupu, import z Excelu
+- [x] Přehled, detail bytu, finance, editace na webu
+- [x] Dlaždice v Rozcestníku, Financování RD za přihlášením
+- [ ] Založit projekt Supabase a vložit klíče (viz docs/08)
+- [ ] Sloučit do `main` a zapnout GitHub Pages

@@ -4,3 +4,6 @@ data/
 *.xls
 *.csv
 .env
+# vygenerovaný import s osobními údaji (schema je v supabase/)
+*.sql
+!supabase/*.sql

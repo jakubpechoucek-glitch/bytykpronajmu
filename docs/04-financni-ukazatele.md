@@ -1,5 +1,7 @@
 # 04 – Finanční ukazatele
 
+> Implementace: `js/finance.js`, testy `tools/test_finance.js`.
+
 Vzorce odvozené z Excelu (ověřené zpětným přepočtem hodnot v listech).
 U každého je poznámka, zda ho v aplikaci převzít beze změny, nebo upravit.
 
