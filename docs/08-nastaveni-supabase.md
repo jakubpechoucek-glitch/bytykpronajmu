@@ -86,3 +86,15 @@ v repech `rozcestnik`, `bytykpronajmu` a `assets_dashboard`:
 
 `…/bytykpronajmu/?demo` – smyšlená data v paměti, bez přihlášení. Slouží
 k vyzkoušení a testům, nic neukládá.
+
+## Časté chyby při přihlašování
+
+| Hláška | Příčina | Řešení |
+|---|---|---|
+| `Unsupported provider: provider is not enabled` | Google není v Supabase zapnutý | Sign In / Providers → Google → Enable |
+| „Špatný e-mail nebo heslo" | uživatel neexistuje v Authentication → Users nebo není potvrzený | Add user, zaškrtnout *Auto Confirm User* |
+| „Účet … není mezi členy rodiny" | e-mail chybí v tabulce `clenove` | Table Editor → clenove → Insert row (e-mail přesně jako u uživatele) |
+| Google: `Error 401: invalid_client` | v Supabase je špatné Client ID / Secret, nebo nový klient ještě není aktivní | znovu zkopírovat z Google Cloud → Clients, počkat 5–10 min |
+| Google: `Error 400: redirect_uri_mismatch` | v Google klientovi chybí redirect URI | Authorized redirect URIs: `https://<projekt>.supabase.co/auth/v1/callback` (bez lomítka na konci) |
+| `Signups not allowed for this instance` | Google účet se nespároval s existujícím uživatelem | dočasně zapnout *Allow new users to sign up*, přihlásit se, zase vypnout |
+| SQL Editor: `Load failed (api.supabase.com)` | administrace Supabase se nespojila se serverem (Safari, blokátor) | obnovit stránku / jiný prohlížeč, nebo použít Table Editor |
