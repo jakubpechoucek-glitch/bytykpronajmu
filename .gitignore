@@ -1,0 +1,6 @@
+# Skutečná data (osobní údaje nájemníků, finance) do veřejného repa nepatří
+data/
+*.xlsx
+*.xls
+*.csv
+.env
