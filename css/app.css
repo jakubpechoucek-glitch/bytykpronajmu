@@ -194,3 +194,26 @@ dialog h2 { font: 600 1.3rem Fraunces, Georgia, serif; margin: 0 0 16px; }
 .legend div { display: grid; grid-template-columns: 70px 1fr; gap: 10px; }
 .legend b { font-variant-numeric: tabular-nums; }
 .legend .on { background: var(--soft); border-radius: 8px; }
+
+/* ---------------------------------------------------------------- nápověda „?" */
+.help {
+  display: inline-grid; place-items: center;
+  width: 16px; height: 16px; margin-left: 5px; padding: 0; vertical-align: 1px;
+  border-radius: 50%; border: 1px solid currentColor; background: none; color: inherit;
+  font: 600 10px/1 Inter, sans-serif; letter-spacing: 0; text-transform: none;
+  opacity: .55; cursor: help;
+}
+.help:hover, .help:focus-visible { opacity: 1; }
+.help:focus-visible { outline: 2px solid var(--info); outline-offset: 1px; }
+/* větší plocha pro prst na dotykových displejích */
+@media (hover: none) { .help { width: 20px; height: 20px; font-size: 11px; } }
+.bublina {
+  position: absolute; z-index: 60;
+  display: grid; gap: 4px;
+  padding: 10px 12px; border-radius: 12px;
+  background: var(--text); color: var(--bg);
+  font-size: 0.82rem; line-height: 1.45; text-align: left;
+  box-shadow: 0 12px 28px -10px rgba(0,0,0,.45);
+}
+.bublina b { font-size: 0.85rem; }
+.bublina[hidden] { display: none; }

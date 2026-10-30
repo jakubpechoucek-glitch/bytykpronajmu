@@ -75,8 +75,82 @@
     if (on) on.scrollIntoView({ block: "nearest", inline: "nearest" });
   }
 
+  // ============================================================== nápověda k ukazatelům
+  // Krátké vysvětlení pro toho, kdo metriky nezná. Zobrazí se v bublině u „?".
+  const NAPOVEDA = {
+    hodnota: ["Tržní hodnota", "Odhad, za kolik by se byt dal prodat dnes: cena za m² z posledního odhadu (např. Atlas cen) × plocha bytu. Není to skutečná prodejní cena, jen orientační odhad."],
+    porizeni: ["Pořizovací cena", "Kolik byt stál při koupi včetně vedlejších nákladů (daň, provize, právník). Od ní se počítá zhodnocení i výnosy."],
+    zhodnoceni: ["Zhodnocení", "O kolik je byt dnes dražší než při koupi: (tržní hodnota − pořizovací cena) / pořizovací cena. Počítá jen růst ceny, nájmy v tom nejsou. Příklad: koupeno za 4 mil., dnes 6 mil. → +50 %."],
+    proste: ["Prosté zhodnocení p.a.", "Celkové zhodnocení vydělené počtem let. Jednoduché, ale nadsazené – nepočítá s tím, že růst se „nabaluje“ (zdražuje se už zdražená cena). Přesnější je CAGR."],
+    cagr: ["CAGR – průměrný roční růst", "O kolik procent by byt musel zdražovat každý rok stejně, aby se z pořizovací ceny dostal na dnešní hodnotu (se „složeným úročením“). Jen růst ceny, bez nájmů. Zobrazuje se až po roce držení. Vzorec: (hodnota / pořizovací cena)^(1/roky) − 1."],
+    yield: ["Yield – nájemní výnos", "Kolik procent z pořizovací ceny vám ročně vydělá nájem: nájem za posledních 12 zapsaných měsíců / pořizovací cena. Je to hrubý výnos – před náklady (fond oprav, pojištění, daně, opravy). U bytů v ČR je běžné zhruba 3–5 %."],
+    yieldHodnota: ["Yield z hodnoty", "Roční nájem / dnešní tržní hodnota. Říká, kolik vydělávají peníze, které jsou v bytě dnes „uložené“. Hodí se pro srovnání s jinými investicemi (spořicí účet, dluhopisy) – kdybyste byt prodal, tolik byste museli jinde vydělat, abyste na tom byli stejně."],
+    yieldNom: ["Yield nominální (za rok)", "Nájem vybraný v daném roce / pořizovací cena. Roky, kdy byt nebyl celý rok pronajatý (koupě, výměna nájemníka), vycházejí nižší."],
+    yieldReal: ["Yield reálný", "Nominální yield očištěný o inflaci: (1 + yield) / (1 + inflace) − 1. Ukazuje skutečný přírůstek kupní síly. Záporné číslo = nájem v tom roce nestačil vyrovnat znehodnocení peněz inflací."],
+    inflace: ["Inflace", "Průměrná roční míra inflace podle ČSÚ – o kolik v průměru zdražilo zboží a služby, tedy o kolik ztratily peníze hodnotu."],
+    irr: ["IRR – vnitřní výnosové procento", "Celkový roční výnos investice, který bere v úvahu všechno a v čase, kdy se to stalo: zaplacenou kupní cenu, každý měsíční nájem a dnešní hodnotu bytu (jako byste ho dnes prodali). Je to úrok, který by vám musel dávat účet, abyste skončili se stejným výsledkem. Čím vyšší, tím lépe – hodnocení viz Pásma IRR na stránce Finance."],
+    irrHodnota: ["IRR bez nájmů", "Výnos jen z růstu cen: nákupy bytů a jejich dnešní hodnota, bez nájmů. Rozdíl proti celkovému IRR ukazuje, kolik přidávají nájmy."],
+    pasmo: ["Pásmo IRR", "Slovní hodnocení výnosu: pod 4 % slabé, 4–6 % konzervativní, 6–9 % solidní, 9–12 % výborné, nad 12 % skvělé, ale obvykle s vyšším rizikem."],
+    najemMesic: ["Nájem / měsíc", "Součet měsíčních nájmů podle smluv, které dnes běží. Byt bez platné smlouvy se nepočítá."],
+    najemCelkem: ["Nájemné celkem", "Součet všeho zapsaného nájemného od koupe bytu – hrubě, bez nákladů a daní."],
+    kumulace: ["Kumulace nájmu", "Průběžný součet nájemného od koupě až do daného roku."],
+    hodnotaRok: ["Hodnota ke konci roku", "Odhadnutá hodnota bytu na konci roku – dopočtená rovnoměrně mezi cenou při koupi a jednotlivými odhady. Aktuální rok = dnešní hodnota."],
+    odpis: ["Daňový odpis", "Částka, kterou si můžete každý rok odečíst od příjmů z nájmu jako náklad, a snížit tak daň. Nejde o skutečný výdaj. Byt (odpisová skupina 5) se odpisuje 30 let: 1. rok 1,4 %, další roky 3,4 % ze vstupní ceny."],
+    drzeno: ["Drženo", "Jak dlouho byt vlastníte – od data koupě do dneška."],
+  };
+  const napoveda = (k) => `<button type="button" class="help" data-help="${k}" aria-label="Co je ${esc(NAPOVEDA[k][0])}?">?</button>`;
+  const th = (txt, k, num = true) => `<th${num ? ' class="num"' : ""}>${txt}${k ? napoveda(k) : ""}</th>`;
+
+  // Bublina: na počítači při najetí myší, na dotykovém displeji klepnutím
+  function zapniNapovedu() {
+    const bub = document.createElement("div");
+    bub.className = "bublina";
+    bub.setAttribute("role", "tooltip");
+    bub.hidden = true;
+    document.body.appendChild(bub);
+    let pripnuto = null;
+
+    function ukaz(btn) {
+      const [nazev, text] = NAPOVEDA[btn.dataset.help];
+      bub.innerHTML = `<b>${esc(nazev)}</b><span>${esc(text)}</span>`;
+      bub.hidden = false;
+      const r = btn.getBoundingClientRect();
+      const w = Math.min(320, window.innerWidth - 24);
+      bub.style.width = w + "px";
+      const left = Math.max(12, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 12));
+      const h = bub.offsetHeight;
+      const top = r.bottom + 8 + h < window.innerHeight ? r.bottom + 8 : Math.max(8, r.top - h - 8);
+      bub.style.left = left + window.scrollX + "px";
+      bub.style.top = top + window.scrollY + "px";
+    }
+    const skryj = () => { bub.hidden = true; pripnuto = null; };
+
+    document.addEventListener("mouseover", (e) => {
+      const b = e.target.closest(".help");
+      if (b && !pripnuto) ukaz(b);
+    });
+    document.addEventListener("mouseout", (e) => {
+      if (e.target.closest(".help") && !pripnuto) bub.hidden = true;
+    });
+    document.addEventListener("click", (e) => {
+      const b = e.target.closest(".help");
+      if (b) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (pripnuto === b) return skryj();
+        pripnuto = b;
+        ukaz(b);
+      } else if (!e.target.closest(".bublina")) {
+        skryj();
+      }
+    }, true);
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") skryj(); });
+    window.addEventListener("hashchange", skryj);
+    window.addEventListener("resize", skryj);
+  }
+
   // ============================================================== drobnosti
-  const kpi = (l, v, s = "", cls = "") => `<div class="kpi ${cls}"><div class="l">${l}</div><div class="v">${v}</div>${s ? `<div class="s">${s}</div>` : ""}</div>`;
+  const kpi = (l, v, s = "", cls = "", k = null) => `<div class="kpi ${cls}"><div class="l">${l}${k ? napoveda(k) : ""}</div><div class="v">${v}</div>${s ? `<div class="s">${s}</div>` : ""}</div>`;
   const znamenko = (v, txt) => (v === null || v === undefined ? txt : `<span class="${v >= 0 ? "pos" : "neg"}">${v > 0 ? "+" : ""}${txt}</span>`);
   const pct = (v, des) => F.fmtPct(v, des);
 
@@ -274,12 +348,12 @@
         <button class="btn" id="novy">+ Přidat byt</button>
       </div>
       <div class="kpis">
-        ${kpi("Hodnota portfolia", F.fmtMil(p.V), `pořízeno za ${F.fmtMil(p.P)}`, "hero")}
-        ${kpi("Zhodnocení", znamenko(p.V - p.P, F.fmtMil(p.V - p.P)), znamenko(p.zhodnoceni, pct(p.zhodnoceni, 1)))}
-        ${kpi("Nájem / měsíc", F.fmtKc(p.najemMesic), "podle běžících smluv")}
-        ${kpi("Yield", pct(p.yield12), `posl. 12 zapsaných měs. · z hodnoty ${pct(p.yield12Hodnota)}`)}
-        ${kpi("IRR celkem", pct(p.irrCelkem), `hodnota + nájmy · bez nájmů ${pct(p.irrHodnota)}`)}
-        ${kpi("Nájemné celkem", F.fmtMil(p.najemCelkem), "vše zapsané od pořízení")}
+        ${kpi("Hodnota portfolia", F.fmtMil(p.V), `pořízeno za ${F.fmtMil(p.P)}`, "hero", "hodnota")}
+        ${kpi("Zhodnocení", znamenko(p.V - p.P, F.fmtMil(p.V - p.P)), znamenko(p.zhodnoceni, pct(p.zhodnoceni, 1)), "", "zhodnoceni")}
+        ${kpi("Nájem / měsíc", F.fmtKc(p.najemMesic), "podle běžících smluv", "", "najemMesic")}
+        ${kpi("Yield", pct(p.yield12), `posl. 12 zapsaných měs. · z hodnoty ${pct(p.yield12Hodnota)}`, "", "yield")}
+        ${kpi("IRR celkem", pct(p.irrCelkem), `hodnota + nájmy · bez nájmů ${pct(p.irrHodnota)}`, "", "irr")}
+        ${kpi("Nájemné celkem", F.fmtMil(p.najemCelkem), "vše zapsané od pořízení", "", "najemCelkem")}
       </div>
       ${upoz.length ? `<section class="card"><h2>Upozornění</h2><ul class="alerts">
         ${upoz.map((u) => `<li class="${u.uroven}"><span><a href="#/byt/${encodeURIComponent(u.byt.id)}">${esc(u.byt.nazev)}</a> – ${esc(u.text)}</span></li>`).join("")}
@@ -288,7 +362,7 @@
         <h2>Byty</h2>
         <div class="scroll"><table class="tbl">
           <thead><tr><th>Byt</th><th>Dispozice</th><th class="num">m²</th><th>Smlouva do</th><th class="num">Nájem/měs.</th>
-            <th class="num">Hodnota</th><th class="num">Zhodnocení</th><th class="num">CAGR</th><th class="num">Yield</th><th class="num">IRR</th></tr></thead>
+            ${th("Hodnota", "hodnota")}${th("Zhodnocení", "zhodnoceni")}${th("CAGR", "cagr")}${th("Yield", "yield")}${th("IRR", "irr")}</tr></thead>
           <tbody>${p.souhrny.map((s) => `
             <tr class="click" data-byt="${esc(s.byt.id)}">
               <td><span class="byt-name"><span class="dot" style="background:${barvaBytu(indexy[s.byt.id])}"></span>${esc(s.byt.nazev)}</span></td>
@@ -367,12 +441,12 @@
       </div>
 
       <div class="kpis">
-        ${kpi("Tržní hodnota", F.fmtMil(s.V), s.hodnotaDatum ? `odhad ${F.fmtDatum(s.hodnotaDatum)}${s.cenaM2Odhad ? ` · ${F.fmtKc(s.cenaM2Odhad)}/m²` : ""}` : "", "hero")}
-        ${kpi("Pořízení", F.fmtMil(s.P), `${F.fmtDatum(byt.porizeni_datum)}${s.cenaM2Porizeni ? ` · ${F.fmtKc(s.cenaM2Porizeni)}/m²` : ""}`)}
-        ${kpi("Zhodnocení", znamenko(s.zhodnoceni, pct(s.zhodnoceni, 1)), s.prosteZhodnoceniPa !== null ? `prostě ${pct(s.prosteZhodnoceniPa)} p.a.` : s.V && s.P ? znamenko(s.V - s.P, F.fmtKc(s.V - s.P)) : "")}
-        ${kpi("CAGR", s.cagr !== null ? pct(s.cagr) : "—", s.cagr !== null ? `za ${naVstup(s.n.toFixed(1))} roku` : "drženo méně než rok")}
-        ${kpi("Yield", pct(s.yield12), `${s.posledniNajem ? `12 měs. do ${F.fmtMesic(s.posledniNajem.mesic)} · ` : ""}z hodnoty ${pct(s.yield12Hodnota)}`)}
-        ${kpi("IRR", pct(s.irr), pasmo ? `${pasmo.nazev}: ${pasmo.text.split(",")[0].toLowerCase()}` : "drženo méně než rok")}
+        ${kpi("Tržní hodnota", F.fmtMil(s.V), s.hodnotaDatum ? `odhad ${F.fmtDatum(s.hodnotaDatum)}${s.cenaM2Odhad ? ` · ${F.fmtKc(s.cenaM2Odhad)}/m²` : ""}` : "", "hero", "hodnota")}
+        ${kpi("Pořízení", F.fmtMil(s.P), `${F.fmtDatum(byt.porizeni_datum)}${s.cenaM2Porizeni ? ` · ${F.fmtKc(s.cenaM2Porizeni)}/m²` : ""}`, "", "porizeni")}
+        ${kpi("Zhodnocení", znamenko(s.zhodnoceni, pct(s.zhodnoceni, 1)), s.prosteZhodnoceniPa !== null ? `prostě ${pct(s.prosteZhodnoceniPa)} p.a.` : s.V && s.P ? znamenko(s.V - s.P, F.fmtKc(s.V - s.P)) : "", "", "zhodnoceni")}
+        ${kpi("CAGR", s.cagr !== null ? pct(s.cagr) : "—", s.cagr !== null ? `za ${naVstup(s.n.toFixed(1))} roku` : "drženo méně než rok", "", "cagr")}
+        ${kpi("Yield", pct(s.yield12), `${s.posledniNajem ? `12 měs. do ${F.fmtMesic(s.posledniNajem.mesic)} · ` : ""}z hodnoty ${pct(s.yield12Hodnota)}`, "", "yield")}
+        ${kpi("IRR", pct(s.irr), pasmo ? `${pasmo.nazev}: ${pasmo.text.split(",")[0].toLowerCase()}` : "drženo méně než rok", "", "irr")}
       </div>
 
       ${upoz.length ? `<section class="card"><h2>Upozornění</h2><ul class="alerts">${upoz.map((u) => `<li class="${u.uroven}"><span>${esc(u.text)}</span></li>`).join("")}</ul></section>` : ""}
@@ -450,8 +524,8 @@
       <section class="card" style="margin-top:20px">
         <h2>Po letech</h2>
         <div class="scroll"><table class="tbl">
-          <thead><tr><th>Rok</th><th class="num">Měsíců</th><th class="num">Nájem</th><th class="num">Yield nom.</th><th class="num">Inflace</th><th class="num">Yield reál.</th>
-            <th class="num">Hodnota</th><th class="num">Yield z hodnoty</th><th class="num">Kumulace nájmu</th><th class="num">Daňový odpis</th></tr></thead>
+          <thead><tr><th>Rok</th><th class="num">Měsíců</th><th class="num">Nájem</th>${th("Yield nom.", "yieldNom")}${th("Inflace", "inflace")}${th("Yield reál.", "yieldReal")}
+            ${th("Hodnota", "hodnotaRok")}${th("Yield z hodnoty", "yieldHodnota")}${th("Kumulace nájmu", "kumulace")}${th("Daňový odpis", "odpis")}</tr></thead>
           <tbody>${[...roky].reverse().map((r) => `<tr>
             <td><b>${r.rok}</b></td><td class="num">${r.mesicu}</td><td class="num">${F.fmtKc(r.najem)}</td><td class="num">${pct(r.yieldNom)}</td>
             <td class="num">${pct(r.inflace, 1)}</td><td class="num">${r.yieldReal !== null ? znamenko(r.yieldReal, pct(r.yieldReal)) : "—"}</td>
@@ -621,8 +695,8 @@
       <section class="card">
         <h2>Ukazatele bytů</h2>
         <div class="scroll"><table class="tbl">
-          <thead><tr><th>Byt</th><th class="num">Drženo</th><th class="num">Pořízení</th><th class="num">Hodnota</th><th class="num">Zhodnocení</th><th class="num">Prosté p.a.</th>
-            <th class="num">CAGR</th><th class="num">Yield</th><th class="num">Yield z hodnoty</th><th class="num">IRR</th><th>Pásmo IRR</th></tr></thead>
+          <thead><tr><th>Byt</th>${th("Drženo", "drzeno")}${th("Pořízení", "porizeni")}${th("Hodnota", "hodnota")}${th("Zhodnocení", "zhodnoceni")}${th("Prosté p.a.", "proste")}
+            ${th("CAGR", "cagr")}${th("Yield", "yield")}${th("Yield z hodnoty", "yieldHodnota")}${th("IRR", "irr")}${th("Pásmo IRR", "pasmo", false)}</tr></thead>
           <tbody>${p.souhrny.map((s) => `<tr>
             <td><a href="#/byt/${encodeURIComponent(s.byt.id)}"><b>${esc(s.byt.nazev)}</b></a></td>
             <td class="num">${s.drzeno !== null ? naVstup(s.drzeno.toFixed(1)) + " r." : "—"}</td>
@@ -639,12 +713,12 @@
 
       <div class="cols">
         <section class="card">
-          <h2>Pásma IRR</h2>
+          <h2>Pásma IRR${napoveda("irr")}</h2>
           <div class="legend">${F.PASMA.map((x) => `<div class="${F.pasmo(p.irrCelkem) === x ? "on" : ""}"><b>${x.nazev}</b><span>${x.text} <span class="muted">· ${x.typicky}</span></span></div>`).join("")}</div>
           <p class="note">Zvýrazněné pásmo = celkové IRR portfolia (${pct(p.irrCelkem)}).</p>
         </section>
         <section class="card">
-          <div class="card-head"><h2>Inflace (ČSÚ)</h2><button class="btn small" id="nova-inflace">+ Rok</button></div>
+          <div class="card-head"><h2>Inflace (ČSÚ)${napoveda("inflace")}</h2><button class="btn small" id="nova-inflace">+ Rok</button></div>
           <div class="scroll" style="max-height:290px;overflow-y:auto"><table class="tbl"><thead><tr><th>Rok</th><th class="num">Inflace</th><th></th></tr></thead><tbody>
             ${inflace.map((i) => `<tr><td>${i.rok}</td><td class="num">${pct(Number(i.mira), 1)}</td><td class="num"><button class="icon-btn" data-inflace="${i.rok}" title="Upravit">✎</button></td></tr>`).join("")}
           </tbody></table></div>
@@ -653,7 +727,7 @@
       </div>
 
       <section class="card" style="margin-top:20px">
-        <h2>Hodnota bytů ke konci roku</h2>
+        <h2>Hodnota bytů ke konci roku${napoveda("hodnotaRok")}</h2>
         <div class="scroll"><table class="tbl">
           <thead><tr><th>Rok</th>${hlavaBytu}<th class="num">Celkem</th></tr></thead>
           <tbody>${[...v.roky].reverse().map((r) => {
@@ -676,7 +750,7 @@
       </section>
 
       <section class="card">
-        <h2>Daňové odpisy</h2>
+        <h2>Daňové odpisy${napoveda("odpis")}</h2>
         <div class="scroll" style="max-height:480px;overflow-y:auto"><table class="tbl">
           <thead><tr><th>Rok</th>${hlavaBytu}<th class="num">Celkem</th></tr></thead>
           <tbody>${rokyOdpisu.map((r) => {
@@ -698,5 +772,6 @@
     }));
   }
 
+  zapniNapovedu();
   start();
 })();
