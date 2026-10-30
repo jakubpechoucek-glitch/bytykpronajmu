@@ -1,20 +1,37 @@
 # 07 – Otevřené otázky
 
-## 1. Kde budou data? (blokuje implementaci)
+## 1. Přihlášení a uložení dat – ROZHODNUTO (30. 10. 2026)
 
-Repozitář je veřejný a GitHub Pages také. Data obsahují osobní údaje
-nájemníků (GDPR) a citlivé finanční informace.
+**Rozhodnutí:** data budou za přihlášením. Přihlašuje se jednou, na
+Rozcestníku, a ostatní weby uživatele poznají (single sign-on).
 
-| Varianta | + | − |
-|---|---|---|
-| **a) Excel zůstává zdrojem, stránka ho načte z Dropboxu přes přihlášení** | žádná migrace, Excel dál funguje | složitější přihlášení, parsování xlsx v prohlížeči |
-| **b) JSON v soukromém úložišti** (soukromé repo / Dropbox), stránka po přihlášení | jednoduché, verzování | data se musí synchronizovat s Excelem |
-| **c) Aplikace s backendem a databází** (např. Render + Postgres, přihlášení) | editace v aplikaci, víc uživatelů | víc práce a provozu |
-| **d) Repo přepnout na soukromé**, data v něm | nejjednodušší | GitHub Pages ze soukromého repa vyžaduje placený plán |
+Technická omezení, ze kterých návrh vychází:
 
-Doporučení: začít **b)** – import Excelu → JSON v soukromém úložišti,
-stránka bez dat je veřejná, data se načtou až po přihlášení. Později
-případně přejít na **c)**, až se bude chtít editovat v aplikaci.
+- Heslo v JavaScriptu statické stránky na GitHub Pages **není ochrana**.
+  Zdrojový kód i data si stáhne kdokoli. Data musí vydávat služba, která
+  přihlášení ověří na serveru.
+- **Soukromé repo neschová web.** GitHub Pages ze soukromého repa vyžaduje
+  placený plán (GitHub Pro) a publikovaný web je i tak veřejný. Řízení přístupu
+  k Pages nabízí jen GitHub Enterprise. Soukromé repo tedy chrání jen zdrojový
+  kód a historii, ne data.
+- Rozcestník i většina webů běží na `jakubpechoucek-glitch.github.io/<repo>/`,
+  tedy na **jednom originu**. Přihlášení uložené v prohlížeči proto vidí
+  všechny tyto weby. Aplikace na `*.onrender.com` jsou jiný origin.
+
+Návrh (čeká na potvrzení, viz otázky 1a–1c):
+
+| Varianta | Jak | + | − |
+|---|---|---|---|
+| **A) Supabase Auth + databáze** (doporučeno) | přihlášení jménem (e-mailem) a heslem na Rozcestníku; data bytů v databázi Supabase s pravidly „čte jen přihlášený"; stránky zůstávají na GitHub Pages | zdarma, žádná vlastní doména ani server, skutečná ochrana dat, SSO mezi všemi weby na github.io zadarmo | weby na Render potřebují přihlášení zvlášť (nebo předání tokenu); HTML stránek samotné zůstává veřejné (bez dat) |
+| **B) Cloudflare Access + vlastní doména** | všechny weby přesunout na subdomény (`byty.domena.cz`, …), Cloudflare před ně postaví přihlašovací zeď | chrání celé weby včetně HTML, bez úprav kódu, jedno přihlášení pro všechno | potřeba doména (~250 Kč/rok), přihlášení kódem z e-mailu nebo Google účtem, ne vlastním jménem a heslem |
+
+### Otevřené dílčí otázky
+
+- **1a)** Kdo bude mít přístup (jen majitel / rodina / účetní)? Mají všichni
+  vidět všechno, nebo jen něco?
+- **1b)** Varianta A, nebo B?
+- **1c)** Které další weby z Rozcestníku mají jít za zeď
+  (např. `assets_dashboard`)?
 
 ## 2. Zůstane Excel primárním zdrojem?
 

@@ -47,7 +47,8 @@ Skutečná data drží `data/` (v `.gitignore`) nebo externí úložiště – v
 ## Stav
 
 - [x] Rozbor Excelu a dokumentace
-- [ ] Rozhodnutí o uložení dat a hostingu
+- [x] Rozhodnutí: data za přihlášením, jedno přihlášení na Rozcestníku
+- [ ] Volba technického řešení přihlášení (Supabase / Cloudflare Access)
 - [ ] Import dat z Excelu
 - [ ] Přehled všech bytů
 - [ ] Detail bytu
