@@ -56,6 +56,9 @@ tools/import_excel.py import Excelu → SQL (výstup necommitovat)
 tools/test_finance.js testy výpočtů: node tools/test_finance.js
 ```
 
+Při změně CSS/JS zvýšit `?v=…` u odkazů v `index.html` (stačí krátký hash
+commitu), jinak mobilní prohlížeče drží starou verzi z cache.
+
 Přihlášení zajišťuje společný skript `rozcestnik/auth.js`
 (repo [rozcestnik](https://github.com/jakubpechoucek-glitch/rozcestnik)).
 
