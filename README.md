@@ -76,4 +76,4 @@ nepatří osobní údaje nájemníků ani vygenerovaný `import.sql` (`data/`,
 - [x] Dlaždice v Rozcestníku, Financování RD za přihlášením
 - [x] Založit projekt Supabase a vložit klíče (viz docs/08)
 - [x] Sloučit do `main` a zapnout GitHub Pages
-- [ ] Přihlášení přes Google (volitelné, docs/08 krok 4)
+- [x] Přihlášení přes Google
