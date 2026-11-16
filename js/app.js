@@ -501,22 +501,38 @@
       <section class="card" style="margin-top:20px">
         <div class="card-head"><h2>Pronájmy</h2><button class="btn small" id="novy-pronajem">+ Nová smlouva</button></div>
         ${pron.length ? `<div class="scroll"><table class="tbl pron">
-          <thead><tr><th>#</th><th>Nájemce</th><th>Dokument</th><th>Od</th><th>Do</th><th></th><th class="num">Nájem</th><th class="num">Kauce</th><th class="num">Splatnost</th><th>Účet</th><th>Kontakt</th><th></th></tr></thead>
-          <tbody>${(() => { let n = 0; return pron.map((p, i) => {
-            const novy = i === 0 || pron[i - 1].najemce !== p.najemce;
-            if (novy) n++;
-            const doc = odkazDokumentu(p.dokument);
-            const typ = p.typ === "dodatek" ? `<span class="badge mut">dodatek</span>` : `<span class="badge">smlouva</span>`;
-            return `<tr class="${novy ? "novy-najemce" : "navazuje"}">
-            <td class="muted">${novy ? `${n}.` : ""}</td><td>${novy ? `<b>${esc(p.najemce)}</b>` : `<span class="muted">↳ ${esc(p.najemce)}</span>`}${p.poznamka ? `<div class="muted" style="font-size:.8rem">${esc(p.poznamka)}</div>` : ""}</td>
-            <td>${typ}${doc ? ` <a href="${esc(doc)}" target="_blank" rel="noopener" title="${esc(p.dokument)}">📄</a>` : ""}</td>
-            <td>${F.fmtDatum(p.od)}</td><td>${p.do ? F.fmtDatum(p.do) : "neurčito"}</td><td>${stavPronajmu(p)}</td>
-            <td class="num">${F.fmtKc(p.najem_mesic)}</td><td class="num">${F.fmtKc(p.kauce)}</td>
-            <td class="num">${p.splatnost_den ? `do ${p.splatnost_den}.` : "—"}</td><td>${esc(p.ucet)}</td>
-            <td>${novy && p.kontakt ? (p.kontakt.includes("@") ? `<a href="mailto:${esc(p.kontakt)}">${esc(p.kontakt)}</a>` : esc(p.kontakt)) : ""}</td>
-            <td><button class="icon-btn" data-pronajem="${p.id}" title="Upravit">✎</button></td>
-          </tr>`; }).join(""); })()}</tbody></table></div>
-          <p class="note">Každý řádek = jedna smlouva nebo dodatek. Navazující smlouvy téhož nájemce jsou odsazené (↳). 📄 otevře dokument v Dropboxu.</p>` : `<p class="muted">Zatím žádná smlouva.</p>`}
+          <thead><tr><th>#</th><th>Nájemce / dokument</th><th>Od</th><th>Do</th><th></th><th class="num">Nájem</th><th class="num">Kauce</th><th class="num">Splatnost</th><th>Účet</th><th>Kontakt</th><th></th></tr></thead>
+          ${(() => {
+            // seskupit navazující záznamy téhož nájemce; rozbalený jen poslední
+            const skupiny = [];
+            pron.forEach((p, i) => { if (i === 0 || pron[i - 1].najemce !== p.najemce) skupiny.push([]); skupiny[skupiny.length - 1].push(p); });
+            return skupiny.map((g, si) => {
+              const prvni = g[0], posl = g[g.length - 1], otevrena = si === skupiny.length - 1;
+              const kontakt = g.map((p) => p.kontakt).find(Boolean);
+              const souhrn = { ...posl, od: prvni.od };
+              const hlava = `<tr class="najemce-hlava" tabindex="0" aria-expanded="${otevrena}">
+                <td class="muted">${si + 1}.</td>
+                <td><span class="sipka">▸</span> <b>${esc(prvni.najemce)}</b> <span class="muted" style="font-size:.8rem">· ${g.length} ${g.length === 1 ? "dokument" : g.length < 5 ? "dokumenty" : "dokumentů"}</span></td>
+                <td>${F.fmtDatum(prvni.od)}</td><td>${posl.do ? F.fmtDatum(posl.do) : "neurčito"}</td><td>${stavPronajmu(souhrn)}</td>
+                <td class="num">${F.fmtKc(posl.najem_mesic)}</td><td class="num">${F.fmtKc(posl.kauce)}</td>
+                <td class="num">${posl.splatnost_den ? `do ${posl.splatnost_den}.` : "—"}</td><td>${esc(posl.ucet)}</td>
+                <td>${kontakt ? (kontakt.includes("@") ? `<a href="mailto:${esc(kontakt)}">${esc(kontakt)}</a>` : esc(kontakt)) : ""}</td><td></td>
+              </tr>`;
+              const radky = g.map((p) => {
+                const doc = odkazDokumentu(p.dokument);
+                const typ = p.typ === "dodatek" ? `<span class="badge mut">dodatek</span>` : `<span class="badge">smlouva</span>`;
+                return `<tr class="dokument">
+                  <td></td><td>${typ}${doc ? ` <a href="${esc(doc)}" target="_blank" rel="noopener" title="${esc(p.dokument)}">📄</a>` : ""}${p.poznamka ? `<div class="muted" style="font-size:.8rem">${esc(p.poznamka)}</div>` : ""}</td>
+                  <td>${F.fmtDatum(p.od)}</td><td>${p.do ? F.fmtDatum(p.do) : "neurčito"}</td><td>${stavPronajmu(p)}</td>
+                  <td class="num">${F.fmtKc(p.najem_mesic)}</td><td class="num">${F.fmtKc(p.kauce)}</td>
+                  <td class="num">${p.splatnost_den ? `do ${p.splatnost_den}.` : "—"}</td><td>${esc(p.ucet)}</td><td></td>
+                  <td><button class="icon-btn" data-pronajem="${p.id}" title="Upravit">✎</button></td>
+                </tr>`;
+              }).join("");
+              return `<tbody class="skupina${otevrena ? " otevrena" : ""}">${hlava}${radky}</tbody>`;
+            }).join("");
+          })()}</table></div>
+          <p class="note">Kliknutím na nájemce rozbalíte jeho smlouvy a dodatky. 📄 otevře dokument v Dropboxu.</p>` : `<p class="muted">Zatím žádná smlouva.</p>`}
       </section>
 
       <section class="card">
@@ -562,6 +578,14 @@
         posl ? { typ: "smlouva", najemce: posl.najemce, kontakt: posl.kontakt, od: posl.do ? F.iso(new Date(F.d(posl.do).getTime() + 864e5)) : null,
                  najem_mesic: posl.najem_mesic, kauce: posl.kauce, splatnost_den: posl.splatnost_den, ucet: posl.ucet } : { typ: "smlouva" });
     };
+    $$("tr.najemce-hlava", main).forEach((tr) => {
+      const prepni = (e) => {
+        if (e.target.closest("a, button")) return;
+        tr.setAttribute("aria-expanded", tr.parentElement.classList.toggle("otevrena"));
+      };
+      tr.onclick = prepni;
+      tr.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); prepni(e); } };
+    });
     $$("[data-pronajem]", main).forEach((b) => (b.onclick = () => upravitZaznam("pronajmy", "pronajem", "Upravit smlouvu", byt, pron.find((p) => String(p.id) === b.dataset.pronajem))));
     $("#novy-odhad").onclick = () => upravitZaznam("odhady", "odhad", "Nový odhad ceny", byt, null, { datum: dnes(), zdroj: "Atlas cen" });
     $$("[data-odhad]", main).forEach((b) => (b.onclick = () => upravitZaznam("odhady", "odhad", "Upravit odhad", byt, odhady.find((o) => String(o.id) === b.dataset.odhad))));

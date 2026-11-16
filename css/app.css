@@ -218,8 +218,15 @@ dialog h2 { font: 600 1.3rem Fraunces, Georgia, serif; margin: 0 0 16px; }
 .bublina b { font-size: 0.85rem; }
 .bublina[hidden] { display: none; }
 
-/* Pronájmy: navazující smlouvy téhož nájemce */
-.tbl.pron tr.novy-najemce td { border-top: 2px solid var(--line); }
-.tbl.pron tr.navazuje td { border-bottom-color: transparent; padding-top: 4px; padding-bottom: 4px; }
-.tbl.pron tr.navazuje td:nth-child(2) { padding-left: 20px; }
+/* Pronájmy: skupiny podle nájemce, rozbalitelné */
+.tbl.pron tr.najemce-hlava { cursor: pointer; }
+.tbl.pron tr.najemce-hlava:hover td { background: var(--soft); }
+.tbl.pron tbody + tbody tr.najemce-hlava td { border-top: 2px solid var(--line); }
+.tbl.pron tr.dokument { display: none; }
+.tbl.pron tbody.otevrena tr.dokument { display: table-row; }
+.tbl.pron tr.dokument td { padding-top: 5px; padding-bottom: 5px; font-size: .9rem; border-bottom-color: transparent; }
+.tbl.pron tr.dokument td:nth-child(2) { padding-left: 26px; }
+.tbl.pron .sipka { display: inline-block; transition: transform .15s; color: var(--muted); }
+.tbl.pron tbody.otevrena .sipka { transform: rotate(90deg); }
 .tbl.pron a[title] { text-decoration: none; }
+.tbl.pron td:nth-child(3), .tbl.pron td:nth-child(4) { white-space: nowrap; }
