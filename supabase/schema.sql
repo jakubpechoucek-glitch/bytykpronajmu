@@ -78,8 +78,14 @@ create table if not exists public.pronajmy (
   kauce         numeric(12,2),
   splatnost_den int,
   ucet          text,
-  poznamka      text
+  poznamka      text,
+  -- jeden řádek = jedna smlouva nebo dodatek (prodloužení, změna nájemného)
+  typ           text not null default 'smlouva' check (typ in ('smlouva','dodatek')),
+  dokument      text   -- cesta k souboru v Dropboxu nebo URL
 );
+-- pro databáze založené starší verzí skriptu
+alter table public.pronajmy add column if not exists typ text not null default 'smlouva' check (typ in ('smlouva','dodatek'));
+alter table public.pronajmy add column if not exists dokument text;
 
 -- Skutečně inkasované nájemné po měsících (mesic = 1. den měsíce)
 create table if not exists public.najemne (

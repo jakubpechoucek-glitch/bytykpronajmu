@@ -161,6 +161,15 @@
     return `<span class="badge mut">skončila</span>`;
   }
 
+  // Cesta v Dropboxu → odkaz do webového Dropboxu (náhled souboru ve složce)
+  function odkazDokumentu(d) {
+    if (!d) return "";
+    if (/^https?:\/\//i.test(d)) return d;
+    const i = d.lastIndexOf("/");
+    const slozka = d.slice(0, i).split("/").map(encodeURIComponent).join("/");
+    return `https://www.dropbox.com/home${slozka}?preview=${encodeURIComponent(d.slice(i + 1))}`;
+  }
+
   function toast(text, chyba = false) {
     const el = $("#toast");
     el.textContent = text;
@@ -204,6 +213,7 @@
       { k: "poznamka", l: "Poznámka", t: "area", wide: true },
     ],
     pronajem: [
+      { k: "typ", l: "Typ dokumentu", t: "select", def: "smlouva", moznosti: [["smlouva", "Nájemní smlouva"], ["dodatek", "Dodatek (prodloužení, změna nájemného)"]] },
       { k: "najemce", l: "Nájemce", t: "text", req: true },
       { k: "kontakt", l: "Kontakt (e-mail, telefon)", t: "text" },
       { k: "od", l: "Od", t: "date", req: true },
@@ -212,6 +222,7 @@
       { k: "kauce", l: "Kauce [Kč]", t: "num" },
       { k: "splatnost_den", l: "Splatnost (den v měsíci)", t: "int" },
       { k: "ucet", l: "Na účet", t: "text" },
+      { k: "dokument", l: "Dokument v Dropboxu", t: "text", wide: true, help: "Cesta k souboru, např. /Data z Dellu/Nemovitosti/…/smlouva.docx, nebo odkaz https://…" },
       { k: "poznamka", l: "Poznámka", t: "area", wide: true },
     ],
     odhad: [
@@ -248,14 +259,15 @@
     const id = `f-${p.k}`;
     const val = v ?? p.def ?? "";
     let input;
-    if (p.t === "area") input = `<textarea id="${id}" name="${p.k}">${esc(val)}</textarea>`;
+    if (p.t === "select") input = `<select id="${id}" name="${p.k}">${p.moznosti.map(([h, t]) => `<option value="${esc(h)}" ${String(val) === h ? "selected" : ""}>${esc(t)}</option>`).join("")}</select>`;
+    else if (p.t === "area") input = `<textarea id="${id}" name="${p.k}">${esc(val)}</textarea>`;
     else if (p.t === "bool") return `<div class="f ${p.wide ? "wide" : ""}"><label class="check"><input type="checkbox" id="${id}" name="${p.k}" ${val ? "checked" : ""}> ${p.l}</label></div>`;
     else if (p.t === "date") input = `<input type="date" id="${id}" name="${p.k}" value="${esc(val ? String(val).slice(0, 10) : "")}" ${p.req ? "required" : ""}>`;
     else if (p.t === "url") input = `<input type="url" id="${id}" name="${p.k}" value="${esc(val)}" placeholder="https://…">`;
     else if (p.t === "pct") input = `<input type="text" inputmode="decimal" id="${id}" name="${p.k}" value="${val === "" ? "" : esc(naVstup(+(Number(val) * 100).toFixed(4)))}" ${p.req ? "required" : ""}>`;
     else if (p.t === "num" || p.t === "int") input = `<input type="text" inputmode="${p.t === "int" ? "numeric" : "decimal"}" id="${id}" name="${p.k}" value="${esc(naVstup(val))}" ${p.req ? "required" : ""}>`;
     else input = `<input type="text" id="${id}" name="${p.k}" value="${esc(val)}" ${p.req ? "required" : ""}>`;
-    return `<div class="f ${p.wide ? "wide" : ""}"><label for="${id}">${p.l}${p.req ? " *" : ""}</label>${input}${p.help ? `<span class="help">${p.help}</span>` : ""}</div>`;
+    return `<div class="f ${p.wide ? "wide" : ""}"><label for="${id}">${p.l}${p.req ? " *" : ""}</label>${input}${p.help ? `<span class="hint">${p.help}</span>` : ""}</div>`;
   }
 
   function hodnotyFormulare(pole_, form) {
@@ -294,7 +306,7 @@
       try { await provest(() => ulozit(vals)); zavri(); } catch (e2) { err.textContent = e2.message; err.hidden = false; }
     };
     dlg.showModal();
-    const prvni = form.querySelector("input, textarea");
+    const prvni = form.querySelector("input, textarea, select");
     if (prvni) prvni.focus();
   }
 
@@ -488,16 +500,23 @@
 
       <section class="card" style="margin-top:20px">
         <div class="card-head"><h2>Pronájmy</h2><button class="btn small" id="novy-pronajem">+ Nová smlouva</button></div>
-        ${pron.length ? `<div class="scroll"><table class="tbl">
-          <thead><tr><th>#</th><th>Nájemce</th><th>Od</th><th>Do</th><th></th><th class="num">Nájem</th><th class="num">Kauce</th><th class="num">Splatnost</th><th>Účet</th><th>Kontakt</th><th></th></tr></thead>
-          <tbody>${pron.map((p, i) => `<tr>
-            <td class="muted">${i + 1}.</td><td><b>${esc(p.najemce)}</b>${p.poznamka ? `<div class="muted" style="font-size:.8rem">${esc(p.poznamka)}</div>` : ""}</td>
+        ${pron.length ? `<div class="scroll"><table class="tbl pron">
+          <thead><tr><th>#</th><th>Nájemce</th><th>Dokument</th><th>Od</th><th>Do</th><th></th><th class="num">Nájem</th><th class="num">Kauce</th><th class="num">Splatnost</th><th>Účet</th><th>Kontakt</th><th></th></tr></thead>
+          <tbody>${(() => { let n = 0; return pron.map((p, i) => {
+            const novy = i === 0 || pron[i - 1].najemce !== p.najemce;
+            if (novy) n++;
+            const doc = odkazDokumentu(p.dokument);
+            const typ = p.typ === "dodatek" ? `<span class="badge mut">dodatek</span>` : `<span class="badge">smlouva</span>`;
+            return `<tr class="${novy ? "novy-najemce" : "navazuje"}">
+            <td class="muted">${novy ? `${n}.` : ""}</td><td>${novy ? `<b>${esc(p.najemce)}</b>` : `<span class="muted">↳ ${esc(p.najemce)}</span>`}${p.poznamka ? `<div class="muted" style="font-size:.8rem">${esc(p.poznamka)}</div>` : ""}</td>
+            <td>${typ}${doc ? ` <a href="${esc(doc)}" target="_blank" rel="noopener" title="${esc(p.dokument)}">📄</a>` : ""}</td>
             <td>${F.fmtDatum(p.od)}</td><td>${p.do ? F.fmtDatum(p.do) : "neurčito"}</td><td>${stavPronajmu(p)}</td>
             <td class="num">${F.fmtKc(p.najem_mesic)}</td><td class="num">${F.fmtKc(p.kauce)}</td>
             <td class="num">${p.splatnost_den ? `do ${p.splatnost_den}.` : "—"}</td><td>${esc(p.ucet)}</td>
-            <td>${p.kontakt ? (p.kontakt.includes("@") ? `<a href="mailto:${esc(p.kontakt)}">${esc(p.kontakt)}</a>` : esc(p.kontakt)) : ""}</td>
+            <td>${novy && p.kontakt ? (p.kontakt.includes("@") ? `<a href="mailto:${esc(p.kontakt)}">${esc(p.kontakt)}</a>` : esc(p.kontakt)) : ""}</td>
             <td><button class="icon-btn" data-pronajem="${p.id}" title="Upravit">✎</button></td>
-          </tr>`).join("")}</tbody></table></div>` : `<p class="muted">Zatím žádná smlouva.</p>`}
+          </tr>`; }).join(""); })()}</tbody></table></div>
+          <p class="note">Každý řádek = jedna smlouva nebo dodatek. Navazující smlouvy téhož nájemce jsou odsazené (↳). 📄 otevře dokument v Dropboxu.</p>` : `<p class="muted">Zatím žádná smlouva.</p>`}
       </section>
 
       <section class="card">
@@ -540,7 +559,8 @@
     $("#novy-pronajem").onclick = () => {
       const posl = pron[pron.length - 1];
       upravitZaznam("pronajmy", "pronajem", "Nová nájemní smlouva", byt, null,
-        posl ? { najem_mesic: posl.najem_mesic, kauce: posl.kauce, splatnost_den: posl.splatnost_den, ucet: posl.ucet } : {});
+        posl ? { typ: "smlouva", najemce: posl.najemce, kontakt: posl.kontakt, od: posl.do ? F.iso(new Date(F.d(posl.do).getTime() + 864e5)) : null,
+                 najem_mesic: posl.najem_mesic, kauce: posl.kauce, splatnost_den: posl.splatnost_den, ucet: posl.ucet } : { typ: "smlouva" });
     };
     $$("[data-pronajem]", main).forEach((b) => (b.onclick = () => upravitZaznam("pronajmy", "pronajem", "Upravit smlouvu", byt, pron.find((p) => String(p.id) === b.dataset.pronajem))));
     $("#novy-odhad").onclick = () => upravitZaznam("odhady", "odhad", "Nový odhad ceny", byt, null, { datum: dnes(), zdroj: "Atlas cen" });

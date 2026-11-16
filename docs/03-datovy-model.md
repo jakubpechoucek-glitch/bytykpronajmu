@@ -52,12 +52,14 @@ křivku hodnoty místo lineární interpolace.
 |---|---|---|
 | `byt_id` | ref | |
 | `poradi` | int | |
+| `typ` | `smlouva` \| `dodatek` | jeden záznam = jeden dokument; navazující smlouvy a dodatky (prodloužení, změna nájemného) jsou samostatné řádky |
+| `dokument` | string | cesta k souboru v Dropboxu (aplikace z ní udělá odkaz) nebo URL |
 | `najemce` | string | **osobní údaj** |
 | `kontakt` | string | **osobní údaj** |
 | `od` | date | |
 | `do` | date \| null | null = na dobu neurčitou / běží |
 | `najem_mesic` | number | |
-| `zmeny_najmu` | list `{od, najem_mesic}` | valorizace během smlouvy |
+| `zmeny_najmu` | – | neřeší se zvlášť: změna nájemného = nový řádek typu `dodatek`, předchozí řádek končí den předem |
 | `kauce` | number | |
 | `splatnost_den` | int | den v měsíci |
 | `ucet` | string | čí účet (jméno) |
