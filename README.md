@@ -43,6 +43,7 @@ k jednorázovému importu, dál se vše eviduje a upravuje přímo na webu.
 | [docs/08-nastaveni-supabase.md](docs/08-nastaveni-supabase.md) | Jednorázové nastavení databáze a přihlášení |
 | [docs/10-novy-najem.md](docs/10-novy-najem.md) | Podklad pro nový nájem: inflace z ČSÚ, tržní data, návrh a schválení |
 | [docs/11-inflacni-dolozka.md](docs/11-inflacni-dolozka.md) | Inflační doložka u 2letých smluv, hlídání termínů, stránka Termíny |
+| [docs/12-odhad-trzni-ceny.md](docs/12-odhad-trzni-ceny.md) | Odhad tržní ceny bytů: zdroje, automatický odhad z indexu ČSÚ (návrh), ruční Atlas cen |
 | [docs/09-vyuctovani.md](docs/09-vyuctovani.md) | Vyúčtování záloh nájemníkovi, zálohy a kauce |
 
 ## Struktura

@@ -829,6 +829,7 @@
 
   // ============================================================== nový nájem
   const ODKAZ_DELOITTE = "https://www.deloitte.com/cz-sk/cs/about/press-room.html";
+  const ODKAZ_ATLAS = "https://www.atlascen.cz";
   const ODKAZ_MF = "https://mf.gov.cz/cs/rozpoctova-politika/podpora-projektoveho-rizeni/cenova-mapa/kalkulacka-trzniho-najemneho";
   const STAV_NAVRHU = { navrh: ["návrh", "warn"], schvaleno: ["schváleno", "ok"], odeslano: ["odesláno nájemníkovi", "mut"] };
   const dnyTxt = (n) => (n === 0 ? "dnes" : `za ${n} ${n === 1 ? "den" : n < 5 ? "dny" : "dní"}`);
@@ -1037,15 +1038,22 @@
       const r = N.poslednTrh(data.najem_trh || [], b.id)[z];
       return r ? `naposled ${naVstup(Number(r.kc_m2))} Kč/m² (${F.fmtDatum(r.datum)})` : "zatím nezapsáno";
     };
+    // poslední odhad ceny bytu z Atlasu cen (tabulka odhady = tržní hodnota bytu)
+    const naposledAtlas = (b) => {
+      const r = (data.odhady || []).filter((o) => o.byt_id === b.id && o.zdroj === "Atlas cen").sort((x, y) => (String(x.datum) < String(y.datum) ? 1 : -1))[0];
+      return r ? `naposled ${naVstup(Number(r.cena_m2))} Kč/m² (${F.fmtDatum(r.datum)})` : "zatím nezapsáno";
+    };
     const polea = [{
       k: "datum", l: "Údaje platí k", t: "date", req: true, def: dnes(), wide: true,
-      help: `Otevři <a href="${ODKAZ_DELOITTE}" target="_blank" rel="noopener">Deloitte Rent Index</a> (nejnovější zpráva, nájem v Kč/m² podle městské části) a
-        <a href="${ODKAZ_MF}" target="_blank" rel="noopener">kalkulačku MF</a> (adresa a parametry bytu). Co nevyplníš, zůstane beze změny. Zapisuje se jednou za čtvrtletí, do 20. února, května, srpna a listopadu.`,
+      help: `Otevři <a href="${ODKAZ_DELOITTE}" target="_blank" rel="noopener">Deloitte Rent Index</a> (nejnovější zpráva, nájem v Kč/m² podle městské části),
+        <a href="${ODKAZ_MF}" target="_blank" rel="noopener">kalkulačku MF</a> (adresa a parametry bytu) a
+        <a href="${ODKAZ_ATLAS}" target="_blank" rel="noopener">Atlas cen</a> (cena bytu za m² podle adresy). Co nevyplníš, zůstane beze změny. Zapisuje se jednou za čtvrtletí, do 20. února, května, srpna a listopadu.`,
     }];
     for (const b of byty) {
       polea.push({ k: `h_${b.id}`, l: `${esc(b.nazev)} · ${naVstup(Number(b.plocha_m2))} m²`, t: "nadpis" });
       polea.push({ k: `d_${b.id}`, l: "Deloitte [Kč/m²]", t: "num", help: naposled(b, "deloitte") });
       polea.push({ k: `m_${b.id}`, l: "Ministerstvo financí [Kč/m²]", t: "num", help: naposled(b, "mf") });
+      polea.push({ k: `a_${b.id}`, l: "Atlas cen – cena bytu k prodeji [Kč/m²]", t: "num", wide: true, help: `${naposledAtlas(b)} · tržní hodnota bytu v aplikaci se počítá z posledního odhadu` });
     }
     formular({
       titulek: "Čtvrtletní tržní data",
@@ -1056,7 +1064,19 @@
           if (v[`d_${b.id}`] !== null) radky.push({ byt_id: b.id, datum: v.datum, zdroj: "deloitte", kc_m2: v[`d_${b.id}`] });
           if (v[`m_${b.id}`] !== null) radky.push({ byt_id: b.id, datum: v.datum, zdroj: "mf", kc_m2: v[`m_${b.id}`] });
         }
-        if (!radky.length) throw new Error("Nic nevyplněno – zadej aspoň jedno číslo.");
+        const atlas = byty.filter((b) => v[`a_${b.id}`] !== null).map((b) => ({ byt_id: b.id, datum: v.datum, cena_m2: v[`a_${b.id}`], zdroj: "Atlas cen" }));
+        if (!radky.length && !atlas.length) throw new Error("Nic nevyplněno – zadej aspoň jedno číslo.");
+        // odhad ceny bytu: stejný byt, zdroj a datum se přepíše (jako u tržního nájemného)
+        for (const o of atlas) {
+          const stare = (data.odhady || []).filter((x) => x.byt_id === o.byt_id && x.zdroj === o.zdroj && String(x.datum).slice(0, 10) === o.datum)
+            .sort((a, b) => Number(b.id) - Number(a.id));
+          if (stare.length) {
+            await uloziste.uloz("odhady", { ...o, odkaz: stare[0].odkaz ?? null }, stare[0]);
+            for (const x of stare.slice(1)) await uloziste.smaz("odhady", x);
+          } else {
+            await uloziste.uloz("odhady", { ...o, odkaz: ODKAZ_ATLAS }, null);
+          }
+        }
         for (const r of radky) {
           // stejný byt, zdroj a datum: nový údaj přepíše starý (případné duplicity ze stejného dne se smažou)
           const stare = (data.najem_trh || []).filter((x) => x.byt_id === r.byt_id && x.zdroj === r.zdroj && String(x.datum).slice(0, 10) === r.datum)
