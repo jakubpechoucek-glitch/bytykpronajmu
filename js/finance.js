@@ -248,7 +248,7 @@
       const akt = aktivniPronajem(b, data.pronajmy, dnes);
       const budouci = pr.find((p) => d(p.od) > t);
       if (akt && akt.do && d(akt.do) <= za(90) && !budouci) {
-        out.push({ byt: b, uroven: "varovani", text: `Smlouva (${akt.najemce}) končí ${fmtDatum(akt.do)}` });
+        out.push({ byt: b, uroven: "varovani", typ: "konec-smlouvy", text: `Smlouva (${akt.najemce}) končí ${fmtDatum(akt.do)}` });
       }
       if (!akt && pr.length) {
         const posl = pr[pr.length - 1];

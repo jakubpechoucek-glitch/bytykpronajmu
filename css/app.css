@@ -231,6 +231,28 @@ dialog h2 { font: 600 1.3rem Fraunces, Georgia, serif; margin: 0 0 16px; }
 .tbl.pron a[title] { text-decoration: none; }
 .tbl.pron td:nth-child(3), .tbl.pron td:nth-child(4) { white-space: nowrap; }
 
+/* ---------------------------------------------------------------- nový nájem */
+a.btn { text-decoration: none; display: inline-block; }
+.najem-card { margin-top: 16px; }
+.najem-card.k-reseni { border-left: 4px solid var(--warn); }
+.najem-card .card-head h2 a { text-decoration: none; }
+.najem-card .card-head .sub { margin: 2px 0 0; font-size: 0.85rem; }
+.var-table td:first-child { min-width: 12rem; }
+.var-table tr.nynejsi td { color: var(--muted); }
+.var-table tr.navrh-row td { background: var(--soft); border-top: 2px solid var(--line); }
+.navrh-poznamka { margin: 12px 0 0; padding: 8px 12px; border-left: 3px solid var(--line); white-space: pre-wrap; }
+.navrh-akce { margin-top: 14px; }
+.err-text { color: var(--err); }
+.f-nadpis { grid-column: 1 / -1; margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--line); font: 600 0.95rem/1.2 Inter, sans-serif; }
+.f-nadpis:first-of-type { border-top: 0; }
+.var-table .radek-info { font-size: 0.78rem; margin-top: 2px; }
+.var-table .radek-info .icon-btn { padding: 0 6px; }
+.var-table td:first-child { white-space: normal; }
+@media (max-width: 560px) {
+  .var-table .hide-m { display: none; }
+  .var-table td:first-child { min-width: 0; }
+}
+
 /* ---------------------------------------------------------------- vyúčtování záloh */
 .nowrap { white-space: nowrap; }
 dialog.siroky { width: min(760px, calc(100vw - 32px)); }

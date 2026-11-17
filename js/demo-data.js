@@ -78,6 +78,13 @@
     hypoteky: [
       { id: 1, byt_id: "ricany", vyse: 2500000, splatka_mesic: 13800, sazba: 0.0489, fixace_let: 3, konec_fixace: "2027-02-20", splacena: false },
     ],
+    najem_trh: [
+      { id: 1, byt_id: "vinohrady", datum: "2026-10-01", zdroj: "deloitte", kc_m2: 470 },
+      { id: 2, byt_id: "vinohrady", datum: "2026-10-01", zdroj: "mf", kc_m2: 455 },
+      { id: 3, byt_id: "holesovice", datum: "2026-10-01", zdroj: "deloitte", kc_m2: 490 },
+      { id: 4, byt_id: "ricany", datum: "2026-04-01", zdroj: "mf", kc_m2: 410 },
+    ],
+    najem_navrhy: [],
     inflace: [
       [2013, 0.014], [2014, 0.004], [2015, 0.003], [2016, 0.007], [2017, 0.025], [2018, 0.021], [2019, 0.028],
       [2020, 0.032], [2021, 0.038], [2022, 0.151], [2023, 0.107], [2024, 0.024], [2025, 0.025],
