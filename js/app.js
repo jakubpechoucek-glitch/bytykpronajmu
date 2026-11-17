@@ -807,9 +807,9 @@
     odpocet: { typ: "odpocet", nazev: "Fond oprav", castka: "" },
   };
 
-  function vychoziPolozky(byt, rok, dny) {
+  function vychoziPolozky(byt, od, dny) {
     // z předchozího vyúčtování: koncové stavy měřičů se stanou počátečními, ceny a odečty zůstanou k přepsání
-    const predchozi = data.vyuctovani.filter((x) => x.byt_id === byt.id && x.rok < rok).sort((a, b) => b.rok - a.rok)[0];
+    const predchozi = data.vyuctovani.filter((x) => x.byt_id === byt.id && x.do < od).sort((a, b) => (a.do < b.do ? 1 : -1))[0];
     if (predchozi) {
       return (predchozi.polozky || []).map((p) => {
         const k = { ...NOVA_POLOZKA[p.typ], ...p };
@@ -835,13 +835,13 @@
 
     // stav editoru
     const st = zaznam ? { ...zaznam, polozky: (zaznam.polozky || []).map((p) => ({ ...p })) } : (() => {
-      // další rok po posledním vyúčtování, nejvýš minulý rok (vyúčtovává se zpětně)
-      const posledni = Math.max(0, ...data.vyuctovani.filter((x) => x.byt_id === byt.id).map((x) => x.rok));
-      const rok = posledni ? Math.min(posledni + 1, letos - 1) : letos - 1;
-      const od = `${rok}-01-01`, do_ = `${rok}-12-31`;
+      // období navazuje na poslední vyúčtování; končí koncem roku nebo dřív, když smlouva nájemce končí uprostřed roku
+      const navrh = V.navrhObdobi(pron, data.vyuctovani.filter((x) => x.byt_id === byt.id), dnes());
+      const od = navrh ? navrh.od : `${letos - 1}-01-01`, do_ = navrh ? navrh.do : `${letos - 1}-12-31`;
+      const rok = Number(do_.slice(0, 4));
       const z = V.zalohyPodleSmluv(pron, od, do_);
       return { rok, od, do: do_, najemce: z.najemce || "", zaloha_mesic: z.zaloha_mesic, mesicu: z.mesicu || 12,
-        zalohy_celkem: z.promenliva ? z.zalohy_celkem : null, odeslano: null, poznamka: "", polozky: vychoziPolozky(byt, rok, V.pocetDni(od, do_)) };
+        zalohy_celkem: z.promenliva ? z.zalohy_celkem : null, odeslano: null, poznamka: "", polozky: vychoziPolozky(byt, od, V.pocetDni(od, do_)) };
     })();
 
     const hlavicka = [

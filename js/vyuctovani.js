@@ -94,7 +94,37 @@
     return out;
   }
 
-  const Vyuctovani = { TYPY, spotreba, naklad, pocetDni, pocetMesicu, zalohyCelkem, vypocet, zalohyPodleSmluv };
+  const iso = (x) => x.toISOString().slice(0, 10);
+
+  // Návrh dalšího období: navazuje na konec posledního vyúčtování (nebo začátek první smlouvy)
+  // a končí koncem kalendářního roku, nebo dřív – když nájemníkova smlouva končí uprostřed roku.
+  // Vrací { od, do } nebo null (není co vyúčtovat – vše do `dnes` je pokryté).
+  function navrhObdobi(pronajmy, existujici, dnes) {
+    const sm = [...pronajmy].sort((a, b) => (a.od < b.od ? -1 : 1));
+    if (!sm.length) return null;
+    const posledniDo = existujici.reduce((m, v) => (v.do > m ? v.do : m), "");
+    let od = posledniDo ? iso(new Date(dt(posledniDo).getTime() + DEN)) : String(sm[0].od).slice(0, 10);
+    // mezera bez smlouvy → přeskočit na další smlouvu
+    if (!sm.some((p) => String(p.od).slice(0, 10) <= od && (!p.do || String(p.do).slice(0, 10) >= od))) {
+      const dalsi = sm.find((p) => String(p.od).slice(0, 10) > od);
+      if (!dalsi) return null;
+      od = String(dalsi.od).slice(0, 10);
+    }
+    const aktualni = sm.find((p) => String(p.od).slice(0, 10) <= od && (!p.do || String(p.do).slice(0, 10) >= od));
+    // konec nájemce = konec posledního navazujícího dokumentu téhož nájemce
+    let konec = aktualni.do ? String(aktualni.do).slice(0, 10) : null;
+    for (let zmena = true; zmena && konec;) {
+      zmena = false;
+      const nav = sm.find((p) => p.najemce === aktualni.najemce && String(p.od).slice(0, 10) <= iso(new Date(dt(konec).getTime() + DEN)) && (!p.do || String(p.do).slice(0, 10) > konec));
+      if (nav) { konec = nav.do ? String(nav.do).slice(0, 10) : null; zmena = true; }
+    }
+    const konecRoku = `${od.slice(0, 4)}-12-31`;
+    let do_ = konec && konec < konecRoku ? konec : konecRoku;
+    if (do_ >= String(dnes).slice(0, 10)) return null; // období ještě neskončilo
+    return { od, do: do_ };
+  }
+
+  const Vyuctovani = { navrhObdobi, TYPY, spotreba, naklad, pocetDni, pocetMesicu, zalohyCelkem, vypocet, zalohyPodleSmluv };
   root.Vyuctovani = Vyuctovani;
   if (typeof module !== "undefined") module.exports = Vyuctovani;
 })(typeof window !== "undefined" ? window : globalThis);

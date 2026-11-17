@@ -59,4 +59,21 @@ assert.ok(!z.promenliva);
 z = V.zalohyPodleSmluv([], "2025-01-01", "2025-12-31");
 assert.strictEqual(z.mesicu, 0);
 
+// navrhované období: nájemce A končí uprostřed roku, B navazuje od 1.6.
+const sm2 = [
+  { najemce: "A", od: "2024-03-01", do: "2025-05-31" },
+  { najemce: "B", od: "2025-06-01", do: null },
+];
+let o = V.navrhObdobi(sm2, [], "2026-03-01");
+assert.deepStrictEqual(o, { od: "2024-03-01", do: "2024-12-31" });
+o = V.navrhObdobi(sm2, [{ do: "2024-12-31" }], "2026-03-01");
+assert.deepStrictEqual(o, { od: "2025-01-01", do: "2025-05-31" }); // končí smlouva A
+o = V.navrhObdobi(sm2, [{ do: "2025-05-31" }], "2026-03-01");
+assert.deepStrictEqual(o, { od: "2025-06-01", do: "2025-12-31" }); // nový nájemce od června
+assert.strictEqual(V.navrhObdobi(sm2, [{ do: "2025-12-31" }], "2026-03-01"), null); // 2026 ještě neskončil
+// dodatek téhož nájemce prodlužuje smlouvu → neukončí období
+const sm3 = [{ najemce: "A", od: "2024-01-01", do: "2025-02-28" }, { najemce: "A", od: "2025-03-01", do: "2026-12-31" }];
+o = V.navrhObdobi(sm3, [{ do: "2024-12-31" }], "2026-03-01");
+assert.deepStrictEqual(o, { od: "2025-01-01", do: "2025-12-31" });
+
 console.log("Vyúčtování: všechny testy prošly.");
