@@ -487,6 +487,11 @@
     const den = dnes();
     const s = F.souhrnBytu(byt, data, den);
     const roky = F.rocniPrehled(byt, data, den);
+    // roky v mřížce nájemného: od pořízení do příštího roku (aby byl vidět i nadcházející rok)
+    const rokyGrid = roky.map((r) => r.rok);
+    if (rokyGrid.length && !rokyGrid.includes(F.d(den).getUTCFullYear() + 1)) rokyGrid.push(F.d(den).getUTCFullYear() + 1);
+    const barvy = rokyGrid.length ? N.barvyNajmu(byt, data, cpi, den, rokyGrid[0], rokyGrid[rokyGrid.length - 1]) : { mesice: {}, zmeny: [] };
+    const tecka = (od) => { const b = barvy.mesice[String(od).slice(0, 7)]; return b ? `<span class="tecka" data-c="${b.idx % 6}"></span>` : ""; };
     const pron = F.pronajmyBytu(byt, data.pronajmy);
     const odhady = data.odhady.filter((o) => o.byt_id === byt.id).sort((a, b) => (a.datum < b.datum ? 1 : -1));
     const hyp = s.hypoteky;
@@ -503,6 +508,8 @@
         </div>
         <button class="btn" id="upravit-byt">Upravit byt</button>
       </div>
+
+      ${pasZmen(byt, barvy, den)}
 
       <div class="kpis">
         ${kpi("Tržní hodnota", F.fmtMil(s.V), s.hodnotaDatum ? `odhad ${F.fmtDatum(s.hodnotaDatum)}${s.cenaM2Odhad ? ` · ${F.fmtKc(s.cenaM2Odhad)}/m²` : ""}` : "", "hero", "hodnota")}
@@ -566,7 +573,7 @@
                 <td class="muted">${si + 1}.</td>
                 <td><span class="sipka">▸</span> <b>${esc(prvni.najemce)}</b> <span class="muted" style="font-size:.8rem">· ${g.length} ${g.length === 1 ? "dokument" : g.length < 5 ? "dokumenty" : "dokumentů"}</span></td>
                 <td>${F.fmtDatum(prvni.od)}</td><td>${posl.do ? F.fmtDatum(posl.do) : "neurčito"}</td><td>${stavPronajmu(souhrn)}</td>
-                <td class="num">${F.fmtKc(posl.najem_mesic)}</td><td class="num">${F.fmtKc(posl.kauce)}</td><td class="num">${posl.zaloha_mesic ? F.fmtKc(posl.zaloha_mesic) : "—"}</td>
+                <td class="num">${tecka(posl.od)}${F.fmtKc(posl.najem_mesic)}</td><td class="num">${F.fmtKc(posl.kauce)}</td><td class="num">${posl.zaloha_mesic ? F.fmtKc(posl.zaloha_mesic) : "—"}</td>
                 <td class="num">${posl.splatnost_den ? `do ${posl.splatnost_den}.` : "—"}</td><td>${esc(posl.ucet)}</td>
                 <td>${kontakt ? (kontakt.includes("@") ? `<a href="mailto:${esc(kontakt)}">${esc(kontakt)}</a>` : esc(kontakt)) : ""}</td><td></td>
               </tr>`;
@@ -576,7 +583,7 @@
                 return `<tr class="dokument">
                   <td></td><td>${typ}${doc ? ` <a href="${esc(doc)}" target="_blank" rel="noopener" title="${esc(p.dokument)}">📄</a>` : ""}${p.poznamka ? `<div class="muted" style="font-size:.8rem">${esc(p.poznamka)}</div>` : ""}</td>
                   <td>${F.fmtDatum(p.od)}</td><td>${p.do ? F.fmtDatum(p.do) : "neurčito"}</td><td>${stavPronajmu(p)}</td>
-                  <td class="num">${F.fmtKc(p.najem_mesic)}</td><td class="num">${F.fmtKc(p.kauce)}</td><td class="num">${p.zaloha_mesic ? F.fmtKc(p.zaloha_mesic) : "—"}</td>
+                  <td class="num">${tecka(p.od)}${F.fmtKc(p.najem_mesic)}</td><td class="num">${F.fmtKc(p.kauce)}</td><td class="num">${p.zaloha_mesic ? F.fmtKc(p.zaloha_mesic) : "—"}</td>
                   <td class="num">${p.splatnost_den ? `do ${p.splatnost_den}.` : "—"}</td><td>${esc(p.ucet)}</td><td></td>
                   <td><button class="icon-btn" data-pronajem="${p.id}" title="Upravit">✎</button></td>
                 </tr>`;
@@ -594,8 +601,9 @@
           <h2>Nájemné po měsících</h2>
           <div class="actions"><button class="btn small" id="doplnit">Doplnit podle smluv</button><button class="btn small" id="dalsi-rok">+ Rok</button></div>
         </div>
-        <div class="scroll" id="najem-grid">${gridNajmu(byt, roky)}</div>
-        <p class="note">Skutečně zaplacené nájemné. Prázdná buňka = nezaplaceno / neobsazeno. „Doplnit podle smluv“ vyplní prázdné měsíce do dneška částkou z platné smlouvy.</p>
+        <div class="scroll" id="najem-grid">${gridNajmu(byt, rokyGrid, barvy)}</div>
+        ${legendaNajmu(barvy)}
+        <p class="note">Skutečně zaplacené nájemné. Prázdná buňka = nezaplaceno / neobsazeno. Barva = výše nájmu (změna výše = nová barva), <b>šrafované</b> buňky jsou plán ze smlouvy nebo návrhu, silný levý okraj = měsíc, od kterého se nájem mění, tečkovaný horní okraj = možné zvýšení podle inflační doložky. „Doplnit podle smluv“ vyplní prázdné měsíce do dneška částkou z platné smlouvy.</p>
       </section>
 
       <div class="cols">
@@ -651,7 +659,8 @@
     $("#dalsi-rok").onclick = () => {
       const g = $("#najem-grid");
       const posledni = Math.max(...$$("tr[data-rok]", g).map((tr) => +tr.dataset.rok));
-      g.querySelector("tbody").insertAdjacentHTML("afterbegin", radekNajmu(byt, posledni + 1));
+      const prvni = Math.min(...$$("tr[data-rok]", g).map((tr) => +tr.dataset.rok));
+      g.querySelector("tbody").insertAdjacentHTML("afterbegin", radekNajmu(byt, posledni + 1, najemMapa(byt), N.barvyNajmu(byt, data, cpi, dnes(), prvni, posledni + 1)));
       napojGrid(byt);
     };
     napojGrid(byt);
@@ -682,23 +691,60 @@
     return Object.fromEntries(data.najemne.filter((n) => n.byt_id === byt.id).map((n) => [String(n.mesic).slice(0, 7), n]));
   }
 
-  function radekNajmu(byt, rok, mapa = najemMapa(byt)) {
+  const STAV_NAVRHU_TXT = { navrh: "návrh, zatím neschváleno", schvaleno: "schváleno", odeslano: "oznámeno nájemníkovi" };
+
+  function radekNajmu(byt, rok, mapa = najemMapa(byt), barvy = { mesice: {} }) {
     let sum = 0;
     const bunky = [];
     for (let m = 1; m <= 12; m++) {
       const k = `${rok}-${String(m).padStart(2, "0")}`;
       const n = mapa[k];
+      const b = barvy.mesice[k];
       if (n) sum += Number(n.castka);
-      bunky.push(`<td><input data-mesic="${k}" inputmode="numeric" value="${n ? esc(Number(n.castka)) : ""}" placeholder=" " aria-label="${F.MESICE[m - 1]} ${rok}"></td>`);
+      const cls = b ? [!n && b.plan ? "plan" : "", b.zmena ? "zmena" : "", b.mozne ? "mozne" : ""].filter(Boolean).join(" ") : "";
+      const attr = b ? ` data-c="${b.idx % 6}"${cls ? ` class="${cls}"` : ""}` : "";
+      let title = "";
+      if (b && b.zmena) title = `Od ${F.fmtDatum(k + "-01")}: ${F.fmtKc(b.zmena.z)} → ${F.fmtKc(b.zmena.na)}${b.zmena.stav ? ` (${STAV_NAVRHU_TXT[b.zmena.stav] || b.zmena.stav})` : b.zmena.plan ? " (podle smlouvy)" : ""}`;
+      else if (b && b.mozne) title = `Lze zvýšit na ~${F.fmtKc(b.mozne)} podle inflační doložky`;
+      else if (b && !n && b.plan) title = `Plán: ${F.fmtKc(b.castka)}`;
+      if (b && b.mozne && b.zmena) title += `. Lze zvýšit na ~${F.fmtKc(b.mozne)} podle inflační doložky`;
+      const ph = !n && b && b.plan ? Number(b.castka).toLocaleString("cs-CZ") : " ";
+      bunky.push(`<td${attr}><input data-mesic="${k}" inputmode="numeric" value="${n ? esc(Number(n.castka)) : ""}" placeholder="${ph}"${title ? ` title="${esc(title)}"` : ""} aria-label="${F.MESICE[m - 1]} ${rok}${title ? ": " + esc(title) : ""}"></td>`);
     }
     return `<tr data-rok="${rok}"><td class="rok">${rok}</td>${bunky.join("")}<td class="num sum">${F.fmtKc(sum)}</td></tr>`;
   }
 
-  function gridNajmu(byt, roky) {
+  // Pruh nahoře: nejbližší změny nájmu (z návrhu, smlouvy nebo možné zvýšení podle doložky)
+  function pasZmen(byt, barvy, den) {
+    const nyni = den.slice(0, 7);
+    const zm = barvy.zmeny.filter((z) => z.mesic >= nyni).slice(0, 3);
+    if (!zm.length) return "";
+    return `<div class="zmeny-pas" role="status">${zm.map((z) => {
+      const kdy = F.fmtDatum(z.mesic + "-01");
+      const rozdil = z.z ? (z.na - z.z) / z.z : null;
+      if (z.mozne) return `<a class="zmena-chip mozne" href="#/najem/${encodeURIComponent(byt.id)}"><b>Od ${F.fmtDatum(z.datum)}</b> lze zvýšit nájem na ~${F.fmtKc(z.na)} <span class="muted">(inflační doložka, zatím nevyřešeno)</span></a>`;
+      const stav = z.stav ? ` · ${STAV_NAVRHU_TXT[z.stav] || z.stav}` : " · podle smlouvy";
+      return `<a class="zmena-chip ${z.stav === "navrh" ? "mozne" : "plan"}" href="#/najem/${encodeURIComponent(byt.id)}"><b>Od ${kdy}</b> se mění nájem: ${F.fmtKc(z.z)} → <b>${F.fmtKc(z.na)}</b>${rozdil !== null ? ` (${rozdil > 0 ? "+" : ""}${F.fmtPct(rozdil, 1)})` : ""}<span class="muted">${esc(stav)}</span></a>`;
+    }).join("")}</div>`;
+  }
+
+  // Legenda barev: jedna položka za každé období stejné výše nájmu
+  function legendaNajmu(barvy) {
+    const g = [];
+    for (const [k, b] of Object.entries(barvy.mesice)) {
+      const posl = g[g.length - 1];
+      if (posl && posl.idx === b.idx) { posl.do = k; posl.plan = posl.plan && b.plan; }
+      else g.push({ idx: b.idx, castka: b.castka, od: k, do: k, plan: b.plan });
+    }
+    if (!g.length) return "";
+    return `<div class="legenda-najmu">${g.slice(-8).map((x) => `<span class="legenda-chip"><span class="vzorek${x.plan ? " plan" : ""}" data-c="${x.idx % 6}"></span>${F.fmtKc(x.castka)} <span class="muted">${F.fmtMesic(x.od + "-01")}–${F.fmtMesic(x.do + "-01")}${x.plan ? " plán" : ""}</span></span>`).join("")}</div>`;
+  }
+
+  function gridNajmu(byt, roky, barvy = { mesice: {} }) {
     const mapa = najemMapa(byt);
-    const r = roky.map((x) => x.rok).reverse();
+    const r = [...roky].reverse();
     return `<table class="grid-najem"><thead><tr><th></th>${F.MESICE.map((m) => `<th>${m.slice(0, 3)}</th>`).join("")}<th class="num">Celkem</th></tr></thead>
-      <tbody>${r.map((rok) => radekNajmu(byt, rok, mapa)).join("")}</tbody></table>`;
+      <tbody>${r.map((rok) => radekNajmu(byt, rok, mapa, barvy)).join("")}</tbody></table>`;
   }
 
   function napojGrid(byt) {

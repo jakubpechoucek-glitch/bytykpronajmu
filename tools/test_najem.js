@@ -184,4 +184,41 @@ assert.strictEqual(tm.find((x) => x.typ === "dolozka-odeslat").dni, 15);
 assert.strictEqual(tm.find((x) => x.typ === "dolozka-zacit").dni, -15);
 assert.strictEqual(N.terminy(dv, cpi, "2026-11-17").some((x) => x.typ.startsWith("dolozka")), false); // vyřešené se nehlídá
 
+// ---- barevné období nájmu: skutečnost + plán ze smlouvy / návrhu
+const mes = (rok, od, doM, castka) => { const a = []; for (let m = od; m <= doM; m++) a.push({ byt_id: "d", mesic: `${rok}-${String(m).padStart(2, "0")}-01`, castka }); return a; };
+const bd = (pron, navrhy, najemne) => ({ byty: [{ id: "d", nazev: "D", plocha_m2: 50 }], pronajmy: pron, najem_trh: [], najem_navrhy: navrhy, hypoteky: [], najemne });
+const b1 = bd([sm()], [{ id: 1, byt_id: "d", plati_od: "2027-01-01", navrh: 23300, stav: "odeslano" }], mes(2026, 1, 10, 22000));
+let bv = N.barvyNajmu(byD(b1), b1, cpi, "2026-11-17", 2026, 2027);
+assert.strictEqual(bv.mesice["2026-06"].idx, 0);
+assert.strictEqual(bv.mesice["2026-06"].plan, false);
+assert.strictEqual(bv.mesice["2026-11"].plan, true);        // nynější měsíc bez platby = plán ze smlouvy
+assert.strictEqual(bv.mesice["2026-11"].castka, 22000);
+assert.strictEqual(bv.mesice["2027-01"].castka, 23300);     // návrh od 1. 1. 2027
+assert.strictEqual(bv.mesice["2027-01"].zdroj, "navrh");
+assert.strictEqual(bv.mesice["2027-01"].idx, 1);
+assert.strictEqual(bv.mesice["2027-12"].idx, 1);
+assert.deepStrictEqual(bv.zmeny.map((z) => [z.mesic, z.z, z.na]), [["2027-01", 22000, 23300]]);
+// minulé měsíce bez platby se nevybarvují
+const b2 = bd([sm()], [], mes(2026, 3, 10, 22000));
+bv = N.barvyNajmu(byD(b2), b2, cpi, "2026-11-17", 2026, 2027);
+assert.strictEqual(bv.mesice["2026-02"], undefined);
+// možné zvýšení podle doložky (nevyřešené): nemění výši, jen příznak od data zvýšení
+assert.strictEqual(bv.mesice["2026-12"].mozne, undefined);
+assert.strictEqual(bv.mesice["2027-01"].mozne, 23342);
+assert.strictEqual(bv.zmeny[0].datum, "2027-01-01");
+assert.strictEqual(bv.mesice["2027-01"].castka, 22000);
+assert.deepStrictEqual(bv.zmeny.map((z) => [z.mesic, z.mozne === true]), [["2027-01", true]]);
+// vyřešené zvýšení už se neukazuje jako „možné“ (je to návrh)
+bv = N.barvyNajmu(byD(b1), b1, cpi, "2026-11-17", 2026, 2027);
+assert.strictEqual(bv.mesice["2027-02"].mozne, undefined);
+// smlouva skončila, nový nájem jen z návrhu (např. prodloužení)
+const b3 = bd([sm({ od: "2025-01-01", do: "2026-12-31", najem_mesic: 33600, inflacni_dolozka: false })], [{ id: 2, byt_id: "d", plati_od: "2027-01-01", navrh: 36900, stav: "navrh" }], mes(2026, 1, 10, 33600));
+bv = N.barvyNajmu(byD(b3), b3, cpi, "2026-11-17", 2026, 2027);
+assert.strictEqual(bv.mesice["2027-03"].castka, 36900);
+assert.strictEqual(bv.mesice["2027-03"].stav, "navrh");
+assert.strictEqual(bv.zmeny[0].mesic, "2027-01");
+// bez čehokoli – prázdno
+const b4 = bd([], [], []);
+assert.deepStrictEqual(N.barvyNajmu(byD(b4), b4, cpi, "2026-11-17", 2026, 2027), { mesice: {}, zmeny: [] });
+
 console.log("test_najem: OK");

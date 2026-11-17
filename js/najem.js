@@ -168,6 +168,56 @@
     return a.sort((x, y) => klic(x) - klic(y));
   }
 
+  // ------------------------------------------------------------ barevné období nájmu (detail bytu)
+  // Pro každý měsíc rokOd–rokDo: skutečně zaplacená částka, jinak (od nynějšího měsíce dál) plánovaná
+  // částka ze smlouvy nebo z návrhu. Každá změna výše = nové „období“ (idx), podle kterého se vybarvuje.
+  const klicMesice = (y, m) => `${y}-${String(m).padStart(2, "0")}`;
+
+  function barvyNajmu(byt, data, cpi, dnes, rokOd, rokDo) {
+    const t = F.d(dnes);
+    const nyni = Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), 1);
+    const pr = F.pronajmyBytu(byt, data.pronajmy).filter((p) => F.num(p.najem_mesic));
+    const navrhy = (data.najem_navrhy || []).filter((n) => n.byt_id === byt.id).sort((a, b) => (String(a.plati_od) < String(b.plati_od) ? -1 : 1));
+    const skut = Object.fromEntries((data.najemne || []).filter((n) => n.byt_id === byt.id).map((n) => [String(n.mesic).slice(0, 7), F.num(n.castka)]));
+    const dol = dolozka(byt, data, cpi, dnes);
+    const idx = posledniIndex(cpi);
+    const mesice = {}, zmeny = [];
+    let prev = null, perioda = -1, moznePredtim = false;
+    for (let y = rokOd; y <= rokDo; y++) {
+      for (let m = 1; m <= 12; m++) {
+        const key = klicMesice(y, m);
+        const prvni = Date.UTC(y, m - 1, 1), stred = Date.UTC(y, m - 1, 15);
+        let rec = null;
+        if (skut[key] !== undefined && skut[key] !== null) {
+          rec = { castka: skut[key], zdroj: "skutecnost", plan: false };
+        } else if (prvni >= nyni) {
+          const p = pr.find((x) => F.d(x.od).getTime() <= stred && (!x.do || F.d(x.do).getTime() >= stred));
+          const n = navrhy.filter((x) => F.d(x.plati_od).getTime() <= prvni).pop();
+          if (n && (!p || F.d(n.plati_od) > F.d(p.od))) rec = { castka: F.num(n.navrh), zdroj: "navrh", stav: n.stav, plan: true };
+          else if (p) rec = { castka: F.num(p.najem_mesic), zdroj: "smlouva", plan: true };
+        }
+        if (!rec) continue;
+        if (prev === null) perioda = 0;
+        else if (Math.abs(rec.castka - prev) > 0.5) {
+          perioda++;
+          const z = { mesic: key, z: prev, na: rec.castka, plan: rec.plan, zdroj: rec.zdroj, stav: rec.stav || null };
+          rec.zmena = z;
+          zmeny.push(z);
+        }
+        prev = rec.castka;
+        rec.idx = perioda;
+        // možné zvýšení podle inflační doložky (zatím nevyřešené): jen upozornění, nemění výši
+        // (od měsíce, ve kterém datum zvýšení leží)
+        if (dol && !dol.vyreseno && idx && rec.plan && rec.zdroj === "smlouva" && Date.UTC(y, m, 0) >= F.d(dol.datum).getTime()) {
+          rec.mozne = zaokr(rec.castka * idx.koef);
+          if (!moznePredtim) { zmeny.push({ mesic: key, datum: dol.datum, z: rec.castka, na: rec.mozne, mozne: true }); moznePredtim = true; }
+        }
+        mesice[key] = rec;
+      }
+    }
+    return { mesice, zmeny };
+  }
+
   // Upozornění na zvýšení podle doložky (pro Přehled a detail bytu)
   function upozorneniDolozky(data, cpi, dnes) {
     const out = [];
@@ -209,7 +259,7 @@
     return out.filter((x) => !x.vyreseno && F.d(x.datum) <= hranice && (x.dni >= -60 || x.typ === "trh")).sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : 0));
   }
 
-  const Najem = { ZDROJE, DNI_PRED_KONCEM, DNI_ZACIT, DNI_ODESLAT, DNI_STARE_TRHU, posledniIndex, dolozka, upozorneniDolozky, terminy, stavCpi, terminyTrhu, TERMINY_TRHU, aktualniNajem, poslednTrh, posledniNavrh, podklad, poradiPodleKonce };
+  const Najem = { ZDROJE, DNI_PRED_KONCEM, DNI_ZACIT, DNI_ODESLAT, DNI_STARE_TRHU, posledniIndex, dolozka, barvyNajmu, upozorneniDolozky, terminy, stavCpi, terminyTrhu, TERMINY_TRHU, aktualniNajem, poslednTrh, posledniNavrh, podklad, poradiPodleKonce };
   root.Najem = Najem;
   if (typeof module !== "undefined") module.exports = Najem;
 })(typeof window !== "undefined" ? window : globalThis);

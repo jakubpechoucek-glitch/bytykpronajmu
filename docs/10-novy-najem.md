@@ -44,6 +44,24 @@ na 20. 2., 5., 8. a 11.
 
 Termíny a inflační doložka (zvýšení nájmu po prvním roce) viz [11](11-inflacni-dolozka.md).
 
+## Barevné období nájmu v detailu bytu
+
+V kartě „Nájemné po měsících“ se každý měsíc vybarví podle výše nájmu, **každá změna výše
+= nová barva** (stejná částka přes hranici roku zůstane stejnou barvou). Dále:
+
+- **Šrafované buňky** = plán od nynějšího měsíce: částka ze smlouvy, nebo z návrhu
+  (karta Nový nájem), pokud je návrh platný od pozdějšího data než začátek smlouvy.
+  Plán se neukládá, uloží se až zadaná skutečná platba.
+- **Silný levý okraj** = měsíc, od kterého se nájem mění; po najetí myší je vidět „od kdy,
+  z kolika na kolik a jaký je stav návrhu“.
+- **Tečkovaný horní okraj** = možné zvýšení podle inflační doložky (zatím nevyřešené).
+- Nahoře na stránce bytu je pruh s nejbližšími změnami („Od 1. 1. 2027 se mění nájem: … → …“).
+- Mřížka vždy obsahuje i **řádek na příští rok**, takže je vidět plán dopředu.
+- Barevná tečka u částky v tabulce Pronájmy odpovídá barvě období v mřížce.
+- Minulé měsíce bez zapsané platby se nebarví (prázdná buňka = nezaplaceno / neobsazeno).
+
+Výpočet: `barvyNajmu()` v `js/najem.js` (testy `tools/test_najem.js`).
+
 ## Stahování z ČSÚ
 
 - Skript `tools/stahni_inflaci_najmu.py` (jen standardní Python) vytvoří
