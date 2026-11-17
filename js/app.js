@@ -4,6 +4,7 @@
 
   const F = window.Finance;
   const N = window.Najem;
+  const O = window.Odhad;
   const V = window.Vyuctovani;
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -15,6 +16,8 @@
   let grafy = [];
   let cpi = null;        // indexy/najemne-cpi.json (ČSÚ)
   let cpiChyba = null;
+  let cenyIdx = null;    // indexy/ceny-bytu.json (ČSÚ, automatický odhad ceny bytu)
+  let cenyChyba = null;
   let uzivatel = "";    // jméno přihlášeného (pro „kdo schválil“)
 
   function dnes() {
@@ -42,7 +45,8 @@
       $("#odhlasit").onclick = () => window.RodinaAuth.odhlasit();
     }
     try {
-      await Promise.all([nacti(), nactiCpi()]);
+      await Promise.all([nacti(), nactiCpi(), nactiCenyBytu()]);
+      doplnAutoOdhady();
     } catch (e) {
       $("#main").innerHTML = `<p class="err">Data se nepodařilo načíst: ${esc(e.message)}</p>`;
       return;
@@ -54,6 +58,33 @@
   async function nacti() {
     data = await uloziste.nacti();
     preradByty();
+    doplnAutoOdhady();
+  }
+
+  // Index cen bytů z ČSÚ (stahuje měsíčně GitHub Actions). Chyba se neskrývá – ukáže se na stránce Nový nájem.
+  async function nactiCenyBytu() {
+    try {
+      const r = await fetch("indexy/ceny-bytu.json", { cache: "no-cache" });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      cenyIdx = await r.json();
+      cenyChyba = null;
+    } catch (e) {
+      cenyIdx = null;
+      cenyChyba = e.message || String(e);
+      console.error("Index cen bytů z ČSÚ se nepodařilo načíst:", e);
+    }
+  }
+
+  // Automatické odhady ceny bytů (měsíčně od 1. 1. 2026 z posledního ručního odhadu × index ČSÚ).
+  // Jen v paměti: do databáze se nezapisují, počítají se znovu z kotvy a indexu.
+  function doplnAutoOdhady() {
+    data.odhady = (data.odhady || []).filter((o) => !o.auto);
+    if (!cenyIdx) return;
+    const rady = O.radyZeSouboru(cenyIdx);
+    for (const b of data.byty) {
+      const rada = rady[b.region_indexu];
+      if (rada) data.odhady.push(...O.autoOdhady(b, data.odhady, rada, dnes()));
+    }
   }
 
   // Pořadí bytů (menu, přehled, finance): od nejbližšího termínu (konec smlouvy / zvýšení podle doložky),
@@ -246,6 +277,9 @@
       { k: "porizeni_cena", l: "Pořizovací cena [Kč]", t: "num" },
       { k: "odpisy_vstupni_cena", l: "Vstupní cena pro odpisy [Kč]", t: "num", help: "Prázdné = pořizovací cena" },
       { k: "k_prodeji", l: "Byt se prodává (v menu a přehledech úplně dole)", t: "bool", wide: true },
+      { k: "region_indexu", l: "Automatický odhad ceny: region indexu ČSÚ", t: "select", wide: true,
+        moznosti: [["", "Bez automatického odhadu"], ...Object.entries(O.REGIONY)],
+        help: "Odhad se počítá z posledního ručně zadaného odhadu a vývoje cen bytů ve zvoleném regionu (ČSÚ)." },
       { k: "odkaz_mapa", l: "Odkaz – mapa", t: "url", wide: true },
       { k: "odkaz_fotogalerie", l: "Odkaz – fotogalerie", t: "url", wide: true },
       { k: "odkaz_smlouvy", l: "Odkaz – složka se smlouvami", t: "url", wide: true },
@@ -499,7 +533,10 @@
     const barvy = rokyGrid.length ? N.barvyNajmu(byt, data, cpi, den, rokyGrid[0], rokyGrid[rokyGrid.length - 1]) : { mesice: {}, zmeny: [] };
     const tecka = (od) => { const b = barvy.mesice[String(od).slice(0, 7)]; return b ? `<span class="tecka" data-c="${b.idx % 6}"></span>` : ""; };
     const pron = F.pronajmyBytu(byt, data.pronajmy);
-    const odhady = data.odhady.filter((o) => o.byt_id === byt.id).sort((a, b) => (a.datum < b.datum ? 1 : -1));
+    const odhadyVse = data.odhady.filter((o) => o.byt_id === byt.id).sort((a, b) => (a.datum < b.datum ? 1 : -1));
+    const odhady = odhadyVse.filter((o) => !o.auto);       // ruční (jdou upravit)
+    const autoOdh = odhadyVse.filter((o) => o.auto);       // automatické (jen z indexu, nejdou upravit)
+    const poslOdhad = odhadyVse[0];
     const hyp = s.hypoteky;
     const upoz = F.upozorneni({ ...data, byty: [byt] }, den).concat(N.upozorneniDolozky({ ...data, byty: [byt] }, cpi, den));
     const pasmo = F.pasmo(s.irr);
@@ -518,7 +555,7 @@
       ${pasZmen(byt, barvy, den)}
 
       <div class="kpis">
-        ${kpi("Tržní hodnota", F.fmtMil(s.V), s.hodnotaDatum ? `odhad ${F.fmtDatum(s.hodnotaDatum)}${s.cenaM2Odhad ? ` · ${F.fmtKc(s.cenaM2Odhad)}/m²` : ""}` : "", "hero", "hodnota")}
+        ${kpi("Tržní hodnota", F.fmtMil(s.V), s.hodnotaDatum ? `odhad ${F.fmtDatum(s.hodnotaDatum)}${poslOdhad && poslOdhad.auto ? " (automaticky)" : ""}${s.cenaM2Odhad ? ` · ${F.fmtKc(s.cenaM2Odhad)}/m²` : ""}` : "", "hero", "hodnota")}
         ${kpi("Pořízení", F.fmtMil(s.P), `${F.fmtDatum(byt.porizeni_datum)}${s.cenaM2Porizeni ? ` · ${F.fmtKc(s.cenaM2Porizeni)}/m²` : ""}`, "", "porizeni")}
         ${kpi("Zhodnocení", znamenko(s.zhodnoceni, pct(s.zhodnoceni, 1)), s.prosteZhodnoceniPa !== null ? `prostě ${pct(s.prosteZhodnoceniPa)} p.a.` : s.V && s.P ? znamenko(s.V - s.P, F.fmtKc(s.V - s.P)) : "", "", "zhodnoceni")}
         ${kpi("CAGR", s.cagr !== null ? pct(s.cagr) : "—", s.cagr !== null ? `za ${naVstup(s.n.toFixed(1))} roku` : "drženo méně než rok", "", "cagr")}
@@ -620,6 +657,7 @@
               <td>${o.odkaz ? `<a href="${esc(o.odkaz)}" target="_blank" rel="noopener">${esc(o.zdroj || "odkaz")}</a>` : esc(o.zdroj)}</td>
               <td><button class="icon-btn" data-odhad="${o.id}" title="Upravit">✎</button></td></tr>`).join("")}
           </tbody></table></div>` : `<p class="muted">Bez odhadu – jako hodnota se bere pořizovací cena.</p>`}
+          ${blokAutoOdhadu(byt, autoOdh, odhady)}
         </section>
         <section class="card"><h2>Nájem a yield po letech</h2><div class="chart"><canvas id="g-byt"></canvas></div></section>
       </div>
@@ -691,6 +729,26 @@
         plugins: { tooltip: { callbacks: { label: (c) => (c.dataset.yAxisID === "y2" ? `${c.dataset.label}: ${String(c.parsed.y).replace(".", ",")} %` : `${c.dataset.label}: ${F.fmtKc(c.parsed.y)}`) } } },
       },
     });
+  }
+
+  // Automatický odhad ceny bytu podle indexu ČSÚ (sbalený seznam měsíčních hodnot)
+  function blokAutoOdhadu(byt, autoOdh, rucni) {
+    if (!byt.region_indexu) return "";
+    const region = O.REGIONY[byt.region_indexu] || byt.region_indexu;
+    if (!autoOdh.length) {
+      const proc = !cenyIdx ? `index ČSÚ se nenačetl${cenyChyba ? ` (${esc(cenyChyba)})` : ""}` : !rucni.length ? "není žádný ruční odhad, ze kterého by se vycházelo" : "zatím není žádný měsíc po posledním ručním odhadu";
+      return `<p class="note">Automatický odhad (${esc(region)}) se nepočítá: ${proc}.</p>`;
+    }
+    const posl = autoOdh[0];
+    const kotva = rucni[0];
+    const drzi = autoOdh.some((o) => o.drzi);
+    return `<details class="auto-odhad">
+      <summary>Automatický odhad (index ČSÚ, ${esc(region)}): <b>${F.fmtKc(posl.cena_m2)}/m²</b> k ${F.fmtDatum(posl.datum)} <span class="muted">· ${autoOdh.length} ${autoOdh.length < 5 ? "měsíce" : "měsíců"}</span></summary>
+      <div class="scroll"><table class="tbl"><thead><tr><th>Datum</th><th class="num">Kč/m²</th><th class="num">Hodnota</th><th></th></tr></thead><tbody>
+        ${autoOdh.map((o) => `<tr><td>${F.fmtDatum(o.datum)}</td><td class="num">${F.fmtKc(o.cena_m2)}</td><td class="num">${F.fmtKc(o.cena_m2 * byt.plocha_m2)}</td><td>${o.drzi ? `<span class="badge mut" title="Nejnovější čtvrtletí ČSÚ ještě nevyšlo, drží se poslední známá hodnota indexu">poslední známé</span>` : ""}</td></tr>`).join("")}
+      </tbody></table></div>
+      <p class="note">Vypočteno z posledního ručního odhadu${kotva ? ` (${F.fmtDatum(kotva.datum)}, ${F.fmtKc(kotva.cena_m2)}/m²)` : ""} × změna indexu realizovaných cen bytů (ČSÚ, ${esc(region)}). Jde jen o změnu trhu, ne o cenu tohoto bytu: přesnost určuje ruční odhad (Atlas cen), proto ho zapiš aspoň čtvrtletně.${drzi ? " Za posledním vydaným čtvrtletím se drží poslední hodnota indexu." : ""} Automatické hodnoty nejdou upravit a nezapisují se do databáze.</p>
+    </details>`;
   }
 
   // ------------------------------------------------------------ měsíční grid
@@ -855,6 +913,10 @@
       out.push(["chyba", `Inflace nájmů z ČSÚ se nenačetla${cpiChyba ? ` (${esc(cpiChyba)})` : ""}. Varianta „inflace“ se proto nepočítá.`]);
     } else {
       out.push([sc.ok ? "info" : "varovani", `Inflace nájmů (ČSÚ): <b>${F.fmtPct(idx.koef - 1, 1)}</b> meziročně za ${F.fmtMesic(idx.mesic + "-01")} · ${esc(sc.text)}`]);
+    }
+    if (data.byty.some((b) => b.region_indexu)) {
+      const si = O.stavIndexu(cenyIdx, den);
+      out.push([cenyChyba ? "chyba" : si.ok ? "info" : "varovani", `Automatický odhad ceny bytů: index realizovaných cen bytů – ${cenyChyba ? `nenačetl se (${esc(cenyChyba)})` : esc(si.text)}`]);
     }
     const tt = N.terminyTrhu(data.najem_trh, den);
     const dni = (n) => `${n} ${n === 1 ? "den" : n < 5 ? "dny" : "dní"}`;

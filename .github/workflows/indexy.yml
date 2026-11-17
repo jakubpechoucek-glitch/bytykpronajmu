@@ -1,6 +1,9 @@
-# Měsíčně stáhne index nájmů z ČSÚ do indexy/najemne-cpi.json (viz docs/10-novy-najem.md).
+# Měsíčně stáhne indexy z ČSÚ:
+#  - index nájmů → indexy/najemne-cpi.json (docs/10-novy-najem.md)
+#  - indexy realizovaných cen bytů → indexy/ceny-bytu.json (docs/12-odhad-trzni-ceny.md)
 # ČSÚ zveřejňuje inflaci kolem 10. dne v měsíci, proto běh 12. a pro jistotu 20.
-name: Index nájmů z ČSÚ
+# Selže-li jedno stahování, druhé se přesto spustí; GitHub pošle e-mail o neúspěšném běhu a data se nepřepíšou.
+name: Indexy z ČSÚ (nájmy a ceny bytů)
 
 on:
   schedule:
@@ -19,16 +22,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Stáhnout data ČSÚ
-        run: python3 tools/stahni_inflaci_najmu.py
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Nainstalovat openpyxl (čtení XLSX od ČSÚ)
+        run: python -m pip install openpyxl
+      - name: Stáhnout index nájmů z ČSÚ
+        run: python tools/stahni_inflaci_najmu.py
+      - name: Stáhnout indexy cen bytů z ČSÚ
+        if: ${{ !cancelled() }}
+        run: python tools/stahni_index_cen_bytu.py
       - name: Uložit, pokud se něco změnilo
+        if: ${{ !cancelled() }}
         run: |
-          if git diff --quiet -- indexy/najemne-cpi.json; then
+          if [ -z "$(git status --porcelain -- indexy/)" ]; then
             echo "Beze změny."
             exit 0
           fi
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
-          git add indexy/najemne-cpi.json
-          git commit -m "Index nájmů z ČSÚ: aktualizace dat"
+          git add indexy/
+          git commit -m "Indexy z ČSÚ: aktualizace dat"
           git push

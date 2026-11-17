@@ -46,7 +46,7 @@ CEN0401 je tedy pro automatizaci nejlepší základ (stabilní adresa, kraje), a
 okresu a velikosti obce; jsou to průměry všech bytů, takže nové byty bývají výrazně nad nimi
 (vhodné jen jako kontrola věrohodnosti, ne jako odhad konkrétního bytu).
 
-## Možnost 1 – automatický odhad z indexu (návrh, zatím nepostaveno)
+## Možnost 1 – automatický odhad z indexu (postaveno)
 
 `odhad(měsíc) = poslední kotva (Kč/m²) × index(měsíc) / index(měsíc kotvy)`
 
@@ -64,6 +64,24 @@ okresu a velikosti obce; jsou to průměry všech bytů, takže nové byty býva
 - **Riziko:** ČSÚ mění tvar souborů i adresy (série 014017 byla od 2026 nahrazena publikací
   014016). Skript musí při změně tvaru selhat nahlas a nepřepsat data (jako u indexu nájmů).
 
+### Jak je to postavené
+
+- `tools/stahni_index_cen_bytu.py` stáhne základ (DataStat CEN0401, byty, Praha a Středočeský kraj)
+  a čtvrtletní XLSX starších bytů (doplnění) do `indexy/ceny-bytu.json`; GitHub Actions
+  (`.github/workflows/indexy.yml`) 12. a 20. v měsíci. Při chybě data nepřepíše.
+- `js/odhad.js` (bez DOM, testy `node tools/test_odhad.js`): spojení řad (základ + doplnění),
+  index k datu (lineárně mezi středy čtvrtletí, za posledním čtvrtletím se drží) a měsíční odhady.
+- Odhady se **nepíšou do databáze**: aplikace je při načtení dopočítá z posledního ručního odhadu
+  (kotvy) a indexu a vloží je do paměti (`odhady` s příznakem `auto`). Počítají se **od 1. 1. 2026**
+  po nynější měsíc, vždy k 1. dni měsíce. Novější ruční odhad přepočítá všechny měsíce od sebe.
+- Region řady: sloupec `byty.region_indexu` (`praha`, `stredocesky`, prázdné = vypnuto) ve
+  formuláři bytu. Středočeský kraj má v čtvrtletním XLSX jen řadu „ČR bez Prahy“, proto se
+  novější čtvrtletí doplňují touto řadou.
+- V detailu bytu je pod ručními odhady sbalený seznam automatických hodnot a u tržní hodnoty
+  štítek „(automaticky)“. Za posledním vydaným čtvrtletím je hodnota označená „poslední známé“.
+- Hodnota bytu, zhodnocení, CAGR a IRR se tím počítají z automatických odhadů (poslední
+  automatický odhad je „nejnovější odhad“).
+
 ## Možnost 2 – ruční kotva jednou za čtvrtletí (postaveno)
 
 V okně **Zapsat čtvrtletní data** je u každého bytu políčko **Atlas cen – cena bytu k prodeji
@@ -71,9 +89,15 @@ V okně **Zapsat čtvrtletní data** je u každého bytu políčko **Atlas cen �
 druhý zápis ve stejný den stejný odhad přepíše. Tržní hodnota bytu se počítá z posledního
 odhadu. Termín je stejný jako u ostatních čtvrtletních dat (20. 2., 5., 8., 11.).
 
-## Otevřené otázky k možnosti 1
+## Rozhodnuto (17. 11. 2026)
 
-1. Které řady pro které byty (Praha starší / nové / ČR bez Prahy)?
-2. Zdroj změny trhu: realizované ceny (přesnější, zpoždění ~čtvrtletí), nebo nabídkové
-   (rychlejší, odráží požadavky prodávajících)?
-3. Ručně zadanou kotvu přepisovat jen novějším ručním odhadem, nebo ji po čase zastarat?
+- **Realizované ceny** (ne nabídkové).
+- Automatické odhady jen **za rok 2026** (od 1. 1. 2026).
+- Region bytu: Praha (pražské byty), Středočeský kraj (Brandýs n. L.).
+
+## Omezení a otevřené body
+
+- Index říká jen změnu trhu; přesnost určuje ruční kotva (Atlas cen). Zapisovat aspoň čtvrtletně.
+- Čtvrtletní řada „ČR bez Prahy“ je jen aproximace Středočeského kraje.
+- Pražské řady „starší byty“ a „nové byty“ se liší; odhad používá základ CEN0401 (všechny byty)
+  prodloužený řadou starších bytů.

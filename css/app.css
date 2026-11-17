@@ -341,3 +341,8 @@ dialog.siroky #dlg-fields { display: block; }
   .vy-vysl { white-space: normal; }
   .vy-vysl .badge { display: block; width: fit-content; margin: 0 0 2px auto; }
 }
+
+/* automatický odhad ceny bytu */
+details.auto-odhad { margin-top: 12px; border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; background: var(--soft); }
+details.auto-odhad summary { cursor: pointer; font-size: 0.9rem; }
+details.auto-odhad[open] summary { margin-bottom: 8px; }

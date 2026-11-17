@@ -58,6 +58,8 @@ create table if not exists public.byty (
 
 -- byt, který se bude prodávat: v menu a přehledech se řadí úplně dole
 alter table public.byty add column if not exists k_prodeji boolean not null default false;
+-- region indexu cen bytů ČSÚ pro automatický odhad ceny (docs/12); prázdné = automatický odhad vypnutý
+alter table public.byty add column if not exists region_indexu text check (region_indexu in ('praha','stredocesky'));
 
 -- Odhady tržní ceny (Atlas cen apod.); poslední = aktuální hodnota bytu
 create table if not exists public.odhady (

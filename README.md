@@ -53,6 +53,7 @@ index.html            aplikace (přehled · detail bytu · finance)
 css/app.css
 js/finance.js         výpočty (CAGR, yield, XIRR, odpisy, upozornění) – bez DOM
 js/najem.js           podklad pro nový nájem (inflace, trh, návrh) – bez DOM
+js/odhad.js           automatický odhad ceny bytu z indexu ČSÚ – bez DOM
 indexy/               index nájmů z ČSÚ (stahuje GitHub Actions)
 .github/workflows/    měsíční stažení indexu nájmů
 js/vyuctovani.js      výpočet vyúčtování záloh (měřiče, odečty, přeplatek/nedoplatek) – bez DOM
@@ -63,6 +64,8 @@ supabase/schema.sql   tabulky + pravidla přístupu (RLS)
 tools/import_excel.py import Excelu → SQL (výstup necommitovat)
 tools/test_finance.js testy výpočtů: node tools/test_finance.js
 tools/test_najem.js   testy podkladu nájmu: node tools/test_najem.js
+tools/test_odhad.js   testy automatického odhadu ceny: node tools/test_odhad.js
+tools/stahni_index_cen_bytu.py  stažení indexů cen bytů z ČSÚ
 tools/stahni_inflaci_najmu.py  stažení indexu nájmů z ČSÚ
 tools/test_vyuctovani.js testy vyúčtování: node tools/test_vyuctovani.js
 ```
@@ -92,8 +95,10 @@ nepatří osobní údaje nájemníků ani vygenerovaný `import.sql` (`data/`,
 - [x] Sloučit do `main` a zapnout GitHub Pages
 - [x] Přihlášení přes Google
 - [x] Nový nájem: inflace nájmů z ČSÚ se stahuje sama, tržní data zápisem jednou za čtvrtletí, návrh a schválení druhým členem rodiny (docs/10)
-- [ ] Spustit nový `supabase/schema.sql` v databázi (tabulky `najem_trh`, `najem_navrhy`) – čeká na potvrzení
-- [ ] Sloučit do `main` a ověřit první běh Actions „Index nájmů z ČSÚ“
+- [x] Tabulky `najem_trh`, `najem_navrhy`, `vyuctovani` a sloupce `k_prodeji`, `region_indexu` jsou v databázi (supabase/schema.sql)
+- [x] Měsíční stahování indexů z ČSÚ na GitHubu (Actions „Indexy z ČSÚ“) běží
 - [x] Zálohy u smluv a vyúčtování záloh s tiskem (docs/09) – po nasazení spustit nový `supabase/schema.sql`
 - [ ] Projít po jednom Kbely, Chabry 2, Brandýs a převést starší vyúčtování z Excelů
 - [x] Inflační doložka u 2letých smluv, stránka Termíny, čtvrtletní data (docs/11) – po nasazení ověřit na ostrých datech
+
+- [x] Automatický odhad tržní ceny bytů z indexu ČSÚ od 1. 1. 2026 + pole Atlas cen v čtvrtletních datech (docs/12)
