@@ -751,7 +751,7 @@
             <td><b>${v.rok}</b>${F.fmtDatum(v.od) !== `1. 1. ${v.rok}` || F.fmtDatum(v.do) !== `31. 12. ${v.rok}` ? `<div class="muted" style="font-size:.78rem">${F.fmtDatum(v.od)} – ${F.fmtDatum(v.do)}</div>` : ""}</td>
             <td>${esc(v.najemce)}</td>
             <td class="num">${kc2(r.celkem)}</td><td class="num">${kc2(r.zalohy)}</td>
-            <td class="num">${badge} <span class="${r.preplatek ? "pos" : r.nedoplatek ? "neg" : ""}">${kc2(Math.abs(r.rozdil))}</span></td>
+            <td class="num">${badge} <span class="${r.preplatek ? "pos" : r.nedoplatek ? "neg" : ""}">${kc2(Math.abs(r.rozdil))}</span>${r.maVyrovnani ? `<div class="muted" style="font-size:.78rem">po vyrovnání kauce: ${r.kVraceni >= 0 ? "vrátit" : "doplatit"} ${kc2(Math.abs(r.kVraceni))}</div>` : ""}</td>
             <td>${v.odeslano ? F.fmtDatum(v.odeslano) : `<span class="badge warn">neodesláno</span>`}</td>
             <td class="num nowrap"><a class="btn small" href="#/byt/${encodeURIComponent(byt.id)}/vyuctovani/${v.id}">Tisk / PDF</a> <button class="icon-btn" data-vyuct="${v.id}" title="Upravit">✎</button></td>
           </tr>`;
@@ -764,12 +764,13 @@
   // ---- listina k tisku (čistá stránka pro nájemníka)
   function vykresliListinu(main, byt, v) {
     const r = V.vypocet(v);
-    const radky = r.polozky.map((p) => {
+    const radek = (p) => {
       let popis = "";
       if (p.typ === "meridlo") popis = `${mn(p.stav_od)} → ${mn(p.stav_do)} ${esc(p.jednotka || "")} · spotřeba ${mn(V.spotreba(p))} ${esc(p.jednotka || "")} × ${kc2(Number(p.cena))}`;
       else if (p.typ === "den") popis = `${kc2(Number(p.cena))} × ${mn(p.dny)} dní`;
       return `<tr><td>${esc(p.nazev)}${popis ? `<div class="muted drobne">${popis}</div>` : ""}</td><td class="num">${kc2(p.naklad)}</td></tr>`;
-    }).join("");
+    };
+    const radky = r.nakladPol.map(radek).join("");
     const nazevRadku = r.preplatek ? "Přeplatek – bude vrácen nájemci" : r.nedoplatek ? "Nedoplatek – k úhradě nájemcem" : "Vyúčtování je vyrovnané";
     main.innerHTML = `
       <div class="noprint listina-akce">
@@ -793,6 +794,11 @@
             <tr class="vysledek ${r.preplatek ? "pos" : r.nedoplatek ? "neg" : ""}"><td>${nazevRadku}</td><td class="num">${kc2(Math.abs(r.rozdil))}</td></tr>
           </tfoot>
         </table>
+        ${r.maVyrovnani ? `<h2 class="listina-h2">Vyrovnání při ukončení nájmu</h2>
+        <table class="tbl listina-tbl"><tbody>
+          <tr><td>${r.preplatek ? "Přeplatek ze služeb" : "Nedoplatek ze služeb"}</td><td class="num">${kc2(r.rozdil)}</td></tr>
+          ${r.vyrovnaniPol.map(radek).join("")}
+        </tbody><tfoot><tr class="vysledek ${r.kVraceni >= 0 ? "pos" : "neg"}"><td>${r.kVraceni >= 0 ? "Celkem k vrácení nájemci" : "Celkem doplatí nájemce"}</td><td class="num">${kc2(Math.abs(r.kVraceni))}</td></tr></tfoot></table>` : ""}
         ${v.poznamka ? `<p class="drobne">${esc(v.poznamka)}</p>` : ""}
       </article>`;
     $("#tisk").onclick = () => window.print();
@@ -805,17 +811,20 @@
     den: { typ: "den", nazev: "", cena: "", dny: "" },
     castka: { typ: "castka", nazev: "", castka: "" },
     odpocet: { typ: "odpocet", nazev: "Fond oprav", castka: "" },
+    kauce: { typ: "kauce", nazev: "Kauce včetně úroků", castka: "" },
+    srazka: { typ: "srazka", nazev: "", castka: "" },
   };
 
   function vychoziPolozky(byt, od, dny) {
     // z předchozího vyúčtování: koncové stavy měřičů se stanou počátečními, ceny a odečty zůstanou k přepsání
     const predchozi = data.vyuctovani.filter((x) => x.byt_id === byt.id && x.do < od).sort((a, b) => (a.do < b.do ? 1 : -1))[0];
     if (predchozi) {
-      return (predchozi.polozky || []).map((p) => {
+      return (predchozi.polozky || []).filter((p) => p.typ !== "kauce" && p.typ !== "srazka").map((p) => {
         const k = { ...NOVA_POLOZKA[p.typ], ...p };
         if (p.typ === "meridlo") { k.stav_od = p.stav_do ?? ""; k.stav_do = ""; k.spotreba = ""; }
         if (p.typ === "den") k.dny = dny;
         if (p.typ === "castka" || p.typ === "odpocet") k.castka = "";
+        if (p.naklad_rucne !== undefined) k.naklad_rucne = "";
         return k;
       });
     }
@@ -865,8 +874,8 @@
       $("#vy-polozky").innerHTML = st.polozky.map((p, i) => {
         const f = (k, l, extra = "") => `<label class="${extra}">${l}<input data-k="${k}" inputmode="decimal" value="${esc(mn(p[k]))}"></label>`;
         const pole_ = p.typ === "meridlo"
-          ? f("stav_od", "Stav od") + f("stav_do", "Stav do") + f("cena", "Cena / jedn. [Kč]") + f("jednotka", "Jednotka") + f("spotreba", "Spotřeba ručně", "wide")
-          : p.typ === "den" ? f("cena", "Sazba / den [Kč]") + f("dny", "Počet dní")
+          ? f("stav_od", "Stav od") + f("stav_do", "Stav do") + f("cena", "Cena / jedn. [Kč]") + f("jednotka", "Jednotka") + f("spotreba", "Spotřeba ručně") + f("naklad_rucne", "Částka ručně [Kč]")
+          : p.typ === "den" ? f("cena", "Sazba / den [Kč]") + f("dny", "Počet dní") + f("naklad_rucne", "Částka ručně [Kč]")
           : f("castka", "Částka [Kč]");
         return `<div class="pol" data-i="${i}">
           <div class="pol-top">
@@ -883,7 +892,7 @@
 
     const sebratPolozku = (p) => {
       const o = { typ: p.typ, nazev: (p.nazev || "").trim() };
-      for (const k of ["stav_od", "stav_do", "spotreba", "cena", "dny", "castka"]) if (k in p) o[k] = cisloMeke(p[k]);
+      for (const k of ["stav_od", "stav_do", "spotreba", "cena", "dny", "castka", "naklad_rucne"]) if (k in p) o[k] = cisloMeke(p[k]);
       if (p.typ === "meridlo") o.jednotka = (p.jednotka || "").trim();
       return o;
     };
@@ -902,7 +911,9 @@
         ${r.odpocty ? `<div><span>Odečty</span><b>${kc2(r.odpocty)}</b></div>` : ""}
         <div><span>Náklady celkem</span><b>${kc2(r.celkem)}</b></div>
         <div><span>Zálohy</span><b>${kc2(r.zalohy)}</b></div>
-        <div class="vysl ${r.preplatek ? "pos" : r.nedoplatek ? "neg" : ""}"><span>${vysledekText(r)}</span><b>${kc2(Math.abs(r.rozdil))}</b></div>`;
+        <div class="vysl ${r.preplatek ? "pos" : r.nedoplatek ? "neg" : ""}"><span>${vysledekText(r)}</span><b>${kc2(Math.abs(r.rozdil))}</b></div>
+        ${r.maVyrovnani ? `<div><span>Kauce − srážky</span><b>${kc2(r.vyrovnani)}</b></div>
+        <div class="vysl ${r.kVraceni >= 0 ? "pos" : "neg"}"><span>${r.kVraceni >= 0 ? "Celkem k vrácení nájemci" : "Celkem doplatí nájemce"}</span><b>${kc2(Math.abs(r.kVraceni))}</b></div>` : ""}`;
     };
 
     $("#dlg-fields").innerHTML = `
@@ -970,7 +981,7 @@
         for (const p of hlavicka) out[p.k] = h[`vy-${p.k}`];
         if (out.od > out.do) throw new Error("Začátek období je po jeho konci.");
         const polozky = st.polozky.map((p) => {
-          for (const k of ["stav_od", "stav_do", "spotreba", "cena", "dny", "castka"]) if (k in p) cislo(p[k] ?? ""); // chyba = srozumitelná hláška
+          for (const k of ["stav_od", "stav_do", "spotreba", "cena", "dny", "castka", "naklad_rucne"]) if (k in p) cislo(p[k] ?? ""); // chyba = srozumitelná hláška
           return sebratPolozku(p);
         });
         if (polozky.some((p) => !p.nazev)) throw new Error("Každá položka musí mít název.");

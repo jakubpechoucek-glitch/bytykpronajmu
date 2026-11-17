@@ -55,8 +55,23 @@ zatím jen namátkou):
 | Dokumenty od správce | jedno vyúčtování domu (SVJ) obsahuje vše včetně měřičů | **dva různé subjekty**: správce domu (poplatky SVJ) a měřicí firma (teplo, voda) |
 | Voda a teplo | spotřeba z měřičů v bytě (2× teplá, 2× studená voda, teplo), ceny = náklad SVJ / spotřeba | měřiče 1× teplá, studená, teplo; cena teplé vody zahrnuje i ohřev; teplo se přepočítává koeficienty (zadat jako „spotřeba ručně") |
 | „Ostatní náklady" | náklady SVJ na jednotku **minus** voda a teplo (jedna částka) | denní sazba × dny, nebo částka ze SVJ bez voda/teplo |
-| Fond oprav | je součástí nákladů jednotky ve vyúčtování SVJ; v Excelu za 2025 se **neodečítá** (k ověření, viz níže) | odečítá se |
+| Fond oprav | je součástí nákladů jednotky ve vyúčtování SVJ; v Excelu se **neodečítá** (k ověření, viz níže) | v Excelu za 2024 se **neodečítal** (je v ostatních nákladech) |
 | Délka období | celý rok | celý rok i část roku (nový nájemník od června) |
+
+## Úplný přehled praxe podle importu z Excelů (2023–2026)
+
+- **Fond oprav se odečítá jen u Kbel (Bleriot)** – tam je odečten už při výpočtu
+  ostatních nákladů. Karlín a Chabry (2024) ho mají v nákladech nájemníka.
+  Chabry 2 a Brandýs: ostatní náklady jsou zadané jako denní sazba/částka,
+  z Excelu není vidět, zda Fond oprav obsahují.
+- **Ukončení nájmu** (Kbely 2026): k vyúčtování se přidává vyrovnání kauce –
+  kauce včetně úroků − nedoplatek minulého roku − srážky (oprava, výmalba)
+  = částka k vrácení. Web na to má typy položek *Kauce* a *Srážka z kauce*.
+- **Dva měřiče téhož druhu** (Karlín, Chabry 2): spotřeba se sečte a zadá
+  jednou „Spotřeba ručně“.
+- **Přesná částka z dokladu:** u měřiče a denní sazby je pole „Částka ručně“,
+  které přepíše výpočet (Excel počítá s neokrouhlenými cenami).
+- **Starší Excely počítaly 364 dní** (rok), část roku jinak; web nově 365.
 
 ## Otevřené otázky
 

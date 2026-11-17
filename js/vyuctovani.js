@@ -5,6 +5,9 @@
 //   den     : denní sazba        { nazev, cena, dny }                                      náklad = cena × dny
 //   castka  : pevná částka       { nazev, castka }                                         např. náklady SVJ na byt
 //   odpocet : odečet             { nazev, castka }                                         např. Fond oprav (snižuje náklad)
+//   kauce   : vrácená kauce      { nazev, castka }   jen při ukončení nájmu, přičte se k přeplatku
+//   srazka  : srážka z kauce     { nazev, castka }   např. nedoplatek z minulého roku, oprava podlahy
+// Měřič a denní sazba mohou mít `naklad_rucne` – přesná částka z dokladu přepíše výpočet (haléře).
 (function (root) {
   "use strict";
 
@@ -19,7 +22,10 @@
     den: "Denní sazba × počet dní",
     castka: "Pevná částka",
     odpocet: "Odečet (např. Fond oprav)",
+    kauce: "Kauce k vrácení (při ukončení nájmu)",
+    srazka: "Srážka z kauce (při ukončení nájmu)",
   };
+  const VYROVNANI = ["kauce", "srazka"];
 
   // Spotřeba měřiče: ruční přepsání, jinak konečný − počáteční stav
   function spotreba(p) {
@@ -31,10 +37,12 @@
 
   // Náklad jedné položky v Kč (odečet je záporný)
   function naklad(p) {
+    const r = num(p.naklad_rucne);
+    if (r !== null && (p.typ === "meridlo" || p.typ === "den")) return zaokr(r);
     switch (p.typ) {
       case "meridlo": return zaokr(spotreba(p) * n0(p.cena));
       case "den": return zaokr(n0(p.cena) * n0(p.dny));
-      case "odpocet": return -zaokr(n0(p.castka));
+      case "odpocet": case "srazka": return -zaokr(n0(p.castka));
       default: return zaokr(n0(p.castka));
     }
   }
@@ -59,12 +67,17 @@
   // Výsledek: kladný rozdíl = přeplatek (vrací se nájemníkovi), záporný = nedoplatek
   function vypocet(v) {
     const polozky = (v.polozky || []).map((p) => ({ ...p, naklad: naklad(p) }));
-    const naklady = zaokr(polozky.filter((p) => p.typ !== "odpocet").reduce((s, p) => s + p.naklad, 0));
+    const vyrovnaniPol = polozky.filter((p) => VYROVNANI.includes(p.typ));
+    const nakladPol = polozky.filter((p) => !VYROVNANI.includes(p.typ));
+    const naklady = zaokr(nakladPol.filter((p) => p.typ !== "odpocet").reduce((s, p) => s + p.naklad, 0));
     const odpocty = zaokr(polozky.filter((p) => p.typ === "odpocet").reduce((s, p) => s + p.naklad, 0)); // záporné
     const celkem = zaokr(naklady + odpocty);
     const zalohy = zalohyCelkem(v);
     const rozdil = zaokr(zalohy - celkem);
-    return { polozky, naklady, odpocty, celkem, zalohy, rozdil, preplatek: rozdil > 0, nedoplatek: rozdil < 0 };
+    // vyrovnání při ukončení nájmu: kauce − srážky; kVraceni = co se nájemci nakonec vrací (záporné = doplácí)
+    const vyrovnani = zaokr(vyrovnaniPol.reduce((s, p) => s + p.naklad, 0));
+    const kVraceni = zaokr(rozdil + vyrovnani);
+    return { polozky, nakladPol, vyrovnaniPol, naklady, odpocty, celkem, zalohy, rozdil, preplatek: rozdil > 0, nedoplatek: rozdil < 0, maVyrovnani: vyrovnaniPol.length > 0, vyrovnani, kVraceni };
   }
 
   // Návrh záloh podle smluv: měsíce období, ve kterých platila smlouva/dodatek se zálohou.

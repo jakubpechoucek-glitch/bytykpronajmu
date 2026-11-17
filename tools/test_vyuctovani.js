@@ -76,4 +76,18 @@ const sm3 = [{ najemce: "A", od: "2024-01-01", do: "2025-02-28" }, { najemce: "A
 o = V.navrhObdobi(sm3, [{ do: "2024-12-31" }], "2026-03-01");
 assert.deepStrictEqual(o, { od: "2025-01-01", do: "2025-12-31" });
 
+// přesná částka z dokladu přepíše výpočet
+assert.strictEqual(V.naklad({ typ: "meridlo", spotreba: 27.79, cena: 349.45, naklad_rucne: 9711.2 }), 9711.2);
+// ukončení nájmu: nedoplatek + kauce − srážky = k vrácení
+r = V.vypocet({ zaloha_mesic: 100, mesicu: 5, polozky: [
+  { typ: "castka", castka: 1000 },
+  { typ: "kauce", castka: 3000 },
+  { typ: "srazka", castka: 1200 },
+  { typ: "srazka", castka: 500 },
+] });
+assert.strictEqual(r.celkem, 1000);          // kauce a srážky nejsou náklad
+assert.strictEqual(r.rozdil, -500);           // 500 záloh − 1000 nákladů
+assert.strictEqual(r.vyrovnani, 1300);
+assert.strictEqual(r.kVraceni, 800);
+
 console.log("Vyúčtování: všechny testy prošly.");

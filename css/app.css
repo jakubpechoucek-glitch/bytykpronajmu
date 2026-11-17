@@ -268,3 +268,4 @@ dialog.siroky { width: min(760px, calc(100vw - 32px)); }
   .listina { border: 0; padding: 0; max-width: none; }
 }
 dialog.siroky #dlg-fields { display: block; }
+.listina-h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); margin: 24px 0 6px; }
