@@ -325,3 +325,17 @@ dialog.siroky #dlg-fields { display: block; }
 .zmena-chip.plan { border-left-color: var(--info); }
 .zmena-chip.mozne { border-left-color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, var(--tile)); }
 .zmena-chip .muted { margin-left: 8px; font-size: 0.85em; }
+
+/* společné: skrýt sloupce na úzkém displeji */
+@media (max-width: 560px) { .tbl .hide-m { display: none; } }
+.vy-akce { white-space: normal; }
+.vy-akce .btn { margin-bottom: 4px; }
+.vy-akce-m { display: none; }
+.vy-odeslano .btn { white-space: normal; text-align: left; margin-top: 4px; }
+@media (max-width: 560px) {
+  .vy-akce-m { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 6px; }
+}
+@media (max-width: 560px) {
+  .vy-vysl { white-space: normal; }
+  .vy-vysl .badge { display: block; width: fit-content; margin: 0 0 2px auto; }
+}

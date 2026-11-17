@@ -26,7 +26,7 @@
       { id: "vinohrady", poradi: 1, nazev: "Vinohrady", adresa: "Ukázková 1, Praha 2", dispozice: "2+1", plocha_m2: 68, patro: "4. NP",
         garazova_stani: 0, sklep_m2: 3.5, vybaveni: "kuchyň", posledni_vymalba: 2023, porizeni_datum: "2013-11-15", porizeni_cena: 3900000,
         odkaz_mapa: "https://maps.google.com", odkaz_fotogalerie: "", odkaz_smlouvy: "", poznamka: "Ukázkový byt" },
-      { id: "holesovice", poradi: 2, nazev: "Holešovice", adresa: "Vzorová 22, Praha 7", dispozice: "2+kk", plocha_m2: 54, patro: "2. NP",
+      { id: "holesovice", poradi: 2, k_prodeji: true, nazev: "Holešovice", adresa: "Vzorová 22, Praha 7", dispozice: "2+kk", plocha_m2: 54, patro: "2. NP",
         garazova_stani: 1, sklep_m2: null, vybaveni: "NE", posledni_vymalba: 2022, porizeni_datum: "2019-06-01", porizeni_cena: 5200000 },
       { id: "ricany", poradi: 3, nazev: "Říčany", adresa: "", dispozice: "1+kk", plocha_m2: 36, patro: "1. NP",
         garazova_stani: 1, sklep_m2: 2, vybaveni: "ANO", posledni_vymalba: 2024, porizeni_datum: "2024-02-20", porizeni_cena: 3600000 },

@@ -56,6 +56,9 @@ create table if not exists public.byty (
   poznamka            text
 );
 
+-- byt, který se bude prodávat: v menu a přehledech se řadí úplně dole
+alter table public.byty add column if not exists k_prodeji boolean not null default false;
+
 -- Odhady tržní ceny (Atlas cen apod.); poslední = aktuální hodnota bytu
 create table if not exists public.odhady (
   id      bigint generated always as identity primary key,

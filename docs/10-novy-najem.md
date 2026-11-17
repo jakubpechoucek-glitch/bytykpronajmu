@@ -44,6 +44,18 @@ na 20. 2., 5., 8. a 11.
 
 Termíny a inflační doložka (zvýšení nájmu po prvním roce) viz [11](11-inflacni-dolozka.md).
 
+## Pořadí bytů
+
+Byty v menu, přehledu i na Financích jsou **automaticky seřazené podle nejbližšího termínu**:
+konec běžící smlouvy, nebo nevyřešené zvýšení podle inflační doložky (co nastane dřív).
+Byt bez termínu je před prodávaným bytem. Byt označený **„Byt se prodává“** (pole `k_prodeji`
+ve formuláři bytu) je vždy úplně dole. Pořadí se počítá v paměti, ruční „Pořadí v menu“ už není.
+
+## Čtvrtletní data zapsaná dvakrát ve stejný den
+
+Údaj pro stejný byt, zdroj a datum se při dalším zápisu **přepíše** (nevznikne druhý řádek),
+a kdyby ve stejný den přece byly dva, platí novější (vyšší id).
+
 ## Barevné období nájmu v detailu bytu
 
 V kartě „Nájemné po měsících“ se každý měsíc vybarví podle výše nájmu, **každá změna výše
