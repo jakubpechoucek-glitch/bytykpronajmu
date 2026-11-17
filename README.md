@@ -100,5 +100,4 @@ nepatří osobní údaje nájemníků ani vygenerovaný `import.sql` (`data/`,
 - [x] Zálohy u smluv a vyúčtování záloh s tiskem (docs/09) – po nasazení spustit nový `supabase/schema.sql`
 - [ ] Projít po jednom Kbely, Chabry 2, Brandýs a převést starší vyúčtování z Excelů
 - [x] Inflační doložka u 2letých smluv, stránka Termíny, čtvrtletní data (docs/11) – po nasazení ověřit na ostrých datech
-
 - [x] Automatický odhad tržní ceny bytů z indexu ČSÚ od 1. 1. 2026 + pole Atlas cen v čtvrtletních datech (docs/12)
