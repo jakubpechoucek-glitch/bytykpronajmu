@@ -230,3 +230,41 @@ dialog h2 { font: 600 1.3rem Fraunces, Georgia, serif; margin: 0 0 16px; }
 .tbl.pron tbody.otevrena .sipka { transform: rotate(90deg); }
 .tbl.pron a[title] { text-decoration: none; }
 .tbl.pron td:nth-child(3), .tbl.pron td:nth-child(4) { white-space: nowrap; }
+
+/* ---------------------------------------------------------------- vyúčtování záloh */
+.nowrap { white-space: nowrap; }
+dialog.siroky { width: min(760px, calc(100vw - 32px)); }
+.vy-hlava { margin-bottom: 14px; }
+.vy-nastroje { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+.vy-nastroje select { font: inherit; font-size: .8rem; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+.vy-polozky { display: grid; gap: 10px; }
+.pol { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 8px; background: var(--bg); }
+.pol-top { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.pol select { font: inherit; font-size: .8rem; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--tile); color: var(--text); max-width: 100%; }
+.pol label { display: grid; gap: 2px; font-size: .72rem; font-weight: 600; color: var(--muted); }
+.pol input { font: inherit; font-size: .9rem; font-weight: 400; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--tile); color: var(--text); width: 100%; min-width: 0; }
+.pol-pole { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+.pol-pole .wide { grid-column: 1 / -1; }
+.pol-sum { text-align: right; font-variant-numeric: tabular-nums; font-size: .88rem; }
+.vy-souhrn { margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: var(--soft); display: grid; gap: 4px; font-variant-numeric: tabular-nums; }
+.vy-souhrn div { display: flex; justify-content: space-between; gap: 12px; }
+.vy-souhrn .vysl { font-size: 1.05rem; font-weight: 600; border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; }
+
+/* listina vyúčtování pro nájemníka */
+.listina-akce { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; text-decoration: none; }
+.listina-akce a { text-decoration: none; }
+.listina { background: var(--tile); border: 1px solid var(--line); border-radius: 16px; padding: 28px; max-width: 760px; }
+.listina h1 { font-size: 1.5rem; margin-bottom: 16px; }
+.listina-hlava { margin-bottom: 20px; }
+.listina-tbl td, .listina-tbl th { padding: 8px; }
+.listina-tbl .vysledek td { font-size: 1.05rem; font-weight: 700; border-top: 2px solid var(--text); }
+.drobne { font-size: .8rem; }
+@media (max-width: 560px) { .listina { padding: 16px; } }
+@media print {
+  :root, :root:not([data-theme="light"]) { --bg: #fff; --tile: #fff; --text: #000; --muted: #444; --line: #bbb; --soft: #fff; }
+  .top, .demo-banner, .noprint, .toast { display: none !important; }
+  body { background: #fff; font-size: 12px; }
+  main { padding: 0; max-width: none; }
+  .listina { border: 0; padding: 0; max-width: none; }
+}
+dialog.siroky #dlg-fields { display: block; }

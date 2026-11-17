@@ -41,6 +41,7 @@ k jednorázovému importu, dál se vše eviduje a upravuje přímo na webu.
 | [docs/06-nesrovnalosti-v-datech.md](docs/06-nesrovnalosti-v-datech.md) | Chyby a nejasnosti nalezené v Excelu |
 | [docs/07-otevrene-otazky.md](docs/07-otevrene-otazky.md) | Rozhodnutí a otevřené otázky |
 | [docs/08-nastaveni-supabase.md](docs/08-nastaveni-supabase.md) | Jednorázové nastavení databáze a přihlášení |
+| [docs/09-vyuctovani.md](docs/09-vyuctovani.md) | Vyúčtování záloh nájemníkovi, zálohy a kauce |
 
 ## Struktura
 
@@ -48,12 +49,14 @@ k jednorázovému importu, dál se vše eviduje a upravuje přímo na webu.
 index.html            aplikace (přehled · detail bytu · finance)
 css/app.css
 js/finance.js         výpočty (CAGR, yield, XIRR, odpisy, upozornění) – bez DOM
+js/vyuctovani.js      výpočet vyúčtování záloh (měřiče, odečty, přeplatek/nedoplatek) – bez DOM
 js/data.js            úložiště: Supabase, nebo paměť (?demo)
 js/demo-data.js       smyšlená ukázková data
 js/app.js             obrazovky a editace
 supabase/schema.sql   tabulky + pravidla přístupu (RLS)
 tools/import_excel.py import Excelu → SQL (výstup necommitovat)
 tools/test_finance.js testy výpočtů: node tools/test_finance.js
+tools/test_vyuctovani.js testy vyúčtování: node tools/test_vyuctovani.js
 ```
 
 Při změně CSS/JS zvýšit `?v=…` u odkazů v `index.html` (stačí krátký hash
@@ -80,3 +83,5 @@ nepatří osobní údaje nájemníků ani vygenerovaný `import.sql` (`data/`,
 - [x] Založit projekt Supabase a vložit klíče (viz docs/08)
 - [x] Sloučit do `main` a zapnout GitHub Pages
 - [x] Přihlášení přes Google
+- [x] Zálohy u smluv a vyúčtování záloh s tiskem (docs/09) – po nasazení spustit nový `supabase/schema.sql`
+- [ ] Projít po jednom Kbely, Chabry 2, Brandýs a převést starší vyúčtování z Excelů

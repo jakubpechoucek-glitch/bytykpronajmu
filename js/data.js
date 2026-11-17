@@ -7,6 +7,8 @@
   "use strict";
 
   // Primární klíče; `identity` = id generuje databáze, nesmí se posílat
+  // `volitelna` = tabulka, která v databázi nemusí být (ještě se nespustila nová verze schema.sql);
+  // web pak běží dál a tabulku bere jako prázdnou.
   const TABULKY = {
     byty:     { pk: ["id"] },
     odhady:   { pk: ["id"], identity: true },
@@ -14,6 +16,7 @@
     najemne:  { pk: ["byt_id", "mesic"] },
     hypoteky: { pk: ["id"], identity: true },
     inflace:  { pk: ["rok"] },
+    vyuctovani: { pk: ["id"], identity: true, volitelna: true },
   };
 
   function bezIdentity(t, radek) {
@@ -32,6 +35,11 @@
         const out = {};
         await Promise.all(Object.keys(TABULKY).map(async (t) => {
           const { data, error } = await client.from(t).select("*");
+          if (error && TABULKY[t].volitelna && /PGRST205|42P01|schema cache|does not exist/.test(`${error.code} ${error.message}`)) {
+            out[t] = [];
+            (out._chybiTabulky = out._chybiTabulky || []).push(t);
+            return;
+          }
           chyba(error);
           out[t] = data;
         }));
