@@ -298,3 +298,30 @@ dialog.siroky #dlg-fields { display: block; }
 .nowrap { white-space: nowrap; }
 .terminy .radek-info { font-size: 0.78rem; margin-top: 2px; }
 .terminy td { vertical-align: top; }
+
+/* ---------------------------------------------------------------- barevné období nájmu */
+[data-c="0"] { --bunka: var(--c1); } [data-c="1"] { --bunka: var(--c2); } [data-c="2"] { --bunka: var(--c3); }
+[data-c="3"] { --bunka: var(--c4); } [data-c="4"] { --bunka: var(--c5); } [data-c="5"] { --bunka: var(--c6); }
+.grid-najem td[data-c] input,
+.grid-najem td[data-c] input:placeholder-shown {
+  background: color-mix(in srgb, var(--bunka) 26%, var(--tile));
+  border: 1px solid color-mix(in srgb, var(--bunka) 55%, transparent);
+}
+.grid-najem td.plan input,
+.grid-najem td.plan input:placeholder-shown {
+  border-style: dashed;
+  background-image: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in srgb, var(--bunka) 32%, transparent) 4px 8px);
+}
+.grid-najem td.plan input::placeholder { color: var(--text); opacity: .8; }
+.grid-najem td.zmena input { border-left: 5px solid var(--text); }
+.grid-najem td.mozne input { border-top: 3px dotted var(--warn); }
+.tecka { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; background: var(--bunka); }
+.legenda-najmu { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 0.8rem; }
+.legenda-chip { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.vzorek { width: 18px; height: 12px; border-radius: 4px; border: 1px solid color-mix(in srgb, var(--bunka) 60%, transparent); background: color-mix(in srgb, var(--bunka) 40%, var(--tile)); }
+.vzorek.plan { border-style: dashed; background-image: repeating-linear-gradient(135deg, transparent 0 3px, color-mix(in srgb, var(--bunka) 45%, transparent) 3px 6px); }
+.zmeny-pas { display: grid; gap: 8px; margin: 0 0 18px; }
+.zmena-chip { display: block; padding: 10px 14px; border-radius: 12px; text-decoration: none; border: 1px solid var(--line); border-left-width: 5px; background: var(--tile); }
+.zmena-chip.plan { border-left-color: var(--info); }
+.zmena-chip.mozne { border-left-color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, var(--tile)); }
+.zmena-chip .muted { margin-left: 8px; font-size: 0.85em; }

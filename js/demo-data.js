@@ -15,7 +15,8 @@
   najmy("vinohrady", "2014-03", "2016-12", 15000);
   najmy("vinohrady", "2017-02", "2020-01", 17500);
   najmy("vinohrady", "2020-03", "2023-02", 19000);
-  najmy("vinohrady", "2023-03", "2026-09", 23500);
+  najmy("vinohrady", "2023-03", "2025-02", 23500);
+  najmy("vinohrady", "2025-03", "2026-09", 24500);
   najmy("holesovice", "2019-09", "2022-08", 18000);
   najmy("holesovice", "2022-10", "2025-12", 21000);
   najmy("ricany", "2024-05", "2026-08", 17000);
@@ -84,7 +85,9 @@
       { id: 3, byt_id: "holesovice", datum: "2026-10-01", zdroj: "deloitte", kc_m2: 490 },
       { id: 4, byt_id: "ricany", datum: "2026-04-01", zdroj: "mf", kc_m2: 410 },
     ],
-    najem_navrhy: [],
+    najem_navrhy: [
+      { id: 1, byt_id: "vinohrady", plati_od: "2027-01-01", navrh: 25500, stav: "navrh", poznamka: "Ukázkový návrh podle inflace nájmů.", upravil: "Ukázka", upraveno: "2026-11-10T09:00:00Z" },
+    ],
     inflace: [
       [2013, 0.014], [2014, 0.004], [2015, 0.003], [2016, 0.007], [2017, 0.025], [2018, 0.021], [2019, 0.028],
       [2020, 0.032], [2021, 0.038], [2022, 0.151], [2023, 0.107], [2024, 0.024], [2025, 0.025],
