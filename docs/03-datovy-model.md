@@ -13,6 +13,7 @@ Byt 1───* OdhadCeny
 Byt 1───0..* Hypoteka
 Byt 1───* Odkaz
 Byt 1───* PlatbaVyjimka      (volitelné korekce měsíčních nájmů)
+Byt 1───* Vyuctovani         (roční vyúčtování záloh nájemníkovi)
 Inflace                      (číselník rok → % )
 ```
 
@@ -61,6 +62,7 @@ křivku hodnoty místo lineární interpolace.
 | `najem_mesic` | number | |
 | `zmeny_najmu` | – | neřeší se zvlášť: změna nájemného = nový řádek typu `dodatek`, předchozí řádek končí den předem |
 | `kauce` | number | |
+| `zaloha_mesic` | number | měsíční záloha na služby (voda, teplo, SVJ); podle ní se počítá vyúčtování, viz [09-vyuctovani.md](09-vyuctovani.md) |
 | `splatnost_den` | int | den v měsíci |
 | `ucet` | string | čí účet (jméno) |
 

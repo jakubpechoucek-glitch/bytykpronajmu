@@ -81,11 +81,13 @@ create table if not exists public.pronajmy (
   poznamka      text,
   -- jeden řádek = jedna smlouva nebo dodatek (prodloužení, změna nájemného)
   typ           text not null default 'smlouva' check (typ in ('smlouva','dodatek')),
-  dokument      text   -- cesta k souboru v Dropboxu nebo URL
+  dokument      text,  -- cesta k souboru v Dropboxu nebo URL
+  zaloha_mesic  numeric(12,2)  -- měsíční záloha na služby (voda, teplo, SVJ…)
 );
 -- pro databáze založené starší verzí skriptu
 alter table public.pronajmy add column if not exists typ text not null default 'smlouva' check (typ in ('smlouva','dodatek'));
 alter table public.pronajmy add column if not exists dokument text;
+alter table public.pronajmy add column if not exists zaloha_mesic numeric(12,2);
 
 -- Skutečně inkasované nájemné po měsících (mesic = 1. den měsíce)
 create table if not exists public.najemne (
@@ -94,6 +96,25 @@ create table if not exists public.najemne (
   castka numeric(12,2) not null,
   primary key (byt_id, mesic)
 );
+
+-- Vyúčtování záloh na služby nájemníkovi (jednou ročně).
+-- `polozky` = pole položek (měřiče, denní sazby, pevné částky, odečty – např.
+-- Fond oprav); výpočet dělá web (js/vyuctovani.js), v databázi jsou vstupy.
+create table if not exists public.vyuctovani (
+  id             bigint generated always as identity primary key,
+  byt_id         text not null references public.byty(id) on delete cascade on update cascade,
+  rok            int  not null,
+  od             date not null,
+  "do"           date not null,
+  najemce        text,                 -- jméno nájemce v době vyúčtování
+  zaloha_mesic   numeric(12,2),
+  mesicu         numeric(5,2),         -- za kolik měsíců se zálohy platily
+  zalohy_celkem  numeric(12,2),        -- prázdné = záloha × měsíců (vyplnit, když se záloha v roce měnila)
+  polozky        jsonb not null default '[]'::jsonb,
+  odeslano       date,                 -- kdy bylo vyúčtování odesláno nájemníkovi
+  poznamka       text
+);
+create index if not exists vyuctovani_byt_idx on public.vyuctovani(byt_id, rok);
 
 -- Hypotéky
 create table if not exists public.hypoteky (
@@ -125,6 +146,7 @@ alter table public.odhady   enable row level security;
 alter table public.pronajmy enable row level security;
 alter table public.najemne  enable row level security;
 alter table public.hypoteky enable row level security;
+alter table public.vyuctovani enable row level security;
 alter table public.inflace  enable row level security;
 
 do $$
@@ -135,7 +157,7 @@ begin
   create policy clen_cte on public.clenove
     for select to authenticated using (public.je_clen());
 
-  foreach t in array array['byty','odhady','pronajmy','najemne','hypoteky','inflace'] loop
+  foreach t in array array['byty','odhady','pronajmy','najemne','hypoteky','inflace','vyuctovani'] loop
     execute format('drop policy if exists rodina on public.%I', t);
     execute format(
       'create policy rodina on public.%I for all to authenticated
