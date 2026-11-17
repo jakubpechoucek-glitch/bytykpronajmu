@@ -26,8 +26,8 @@ na „návrh“. Do záložky v menu se píše počet bytů, které je potřeba 
 | Deloitte Rent Index | ručně | Vychází jako PDF s infografikou; adresu nové zprávy nejde předem odvodit a rozložení se mění. |
 | Sreality, Bezrealitky | nestahuje se | Podmínky webů jsem neověřoval; cenová mapa MF z těchto inzerátů stejně vychází. |
 
-Ruční zápis je jediné okno **Zapsat čtvrtletní data**: datum, a pro každý byt dvě
-čísla (Deloitte, MF). U políček je vidět, co bylo zapsáno naposled. Prázdné pole
+Ruční zápis je jediné okno **Zapsat čtvrtletní data**: datum, a pro každý byt tři
+čísla (Deloitte, MF a cena bytu z Atlasu cen, viz [12](12-odhad-trzni-ceny.md)). U políček je vidět, co bylo zapsáno naposled. Prázdné pole
 = beze změny. Údaje starší než 135 dní se označí „zastaralé“.
 
 ## Kdy zapisovat čtvrtletní data
