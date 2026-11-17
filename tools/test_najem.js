@@ -221,4 +221,42 @@ assert.strictEqual(bv.zmeny[0].mesic, "2027-01");
 const b4 = bd([], [], []);
 assert.deepStrictEqual(N.barvyNajmu(byD(b4), b4, cpi, "2026-11-17", 2026, 2027), { mesice: {}, zmeny: [] });
 
+// ---- řazení bytů podle nejbližšího termínu; byt k prodeji dole
+const pr2 = (id, od, do_, dolozka_ = false, extra = {}) => ({ byt_id: id, najemce: "x", od, do: do_, najem_mesic: 20000, typ: "smlouva", inflacni_dolozka: dolozka_, ...extra });
+const dataR = {
+  byty: [
+    { id: "kbely", nazev: "Kbely", plocha_m2: 50, k_prodeji: true, poradi: 1 },
+    { id: "c2", nazev: "C2", plocha_m2: 50, poradi: 2 },
+    { id: "brandys", nazev: "Brandys", plocha_m2: 50, poradi: 3 },
+    { id: "karlin", nazev: "Karlin", plocha_m2: 50, poradi: 4 },
+    { id: "chabry", nazev: "Chabry", plocha_m2: 50, poradi: 5 },
+    { id: "nic", nazev: "Nic", plocha_m2: 50, poradi: 6 },
+  ],
+  pronajmy: [
+    pr2("kbely", "2025-01-01", "2026-05-31"),                      // skončila dávno, ale byt se prodává → dole
+    pr2("c2", "2026-01-01", "2027-12-31", true),                   // zvýšení k 1. 1. 2027 vyřešené návrhem → řídí konec smlouvy
+    pr2("brandys", "2026-09-01", "2028-08-31", true),              // zvýšení 1. 9. 2027
+    pr2("karlin", "2026-01-01", "2026-12-31"),                     // konec 31. 12. 2026
+    pr2("chabry", "2026-06-01", "2028-05-31", true),               // zvýšení 1. 6. 2027
+  ],
+  najem_trh: [], hypoteky: [], najemne: [],
+  najem_navrhy: [{ id: 1, byt_id: "c2", plati_od: "2027-01-01", navrh: 21000, stav: "odeslano" }],
+};
+assert.deepStrictEqual(N.seradBytyPodleTerminu(dataR, cpi, "2026-11-17").map((b) => b.id), ["karlin", "chabry", "brandys", "c2", "nic", "kbely"]);
+assert.strictEqual(N.nejblizsiTermin(dataR.byty[1], dataR, cpi, "2026-11-17"), "2027-12-31");
+assert.strictEqual(N.nejblizsiTermin(dataR.byty[5], dataR, cpi, "2026-11-17"), null);
+assert.deepStrictEqual(N.poradiPodleKonce(dataR, cpi, "2026-11-17").map((x) => x.byt.id), ["karlin", "chabry", "brandys", "c2", "nic", "kbely"]);
+
+// ---- čtvrtletní data: při stejném dni vyhrává novější záznam (vyšší id)
+const trhDny = [
+  { id: 5, byt_id: "a", datum: "2026-11-17", zdroj: "mf", kc_m2: 418 },
+  { id: 6, byt_id: "a", datum: "2026-11-17", zdroj: "mf", kc_m2: 418 },
+  { id: 10, byt_id: "a", datum: "2026-11-17", zdroj: "mf", kc_m2: 523 },
+  { id: 7, byt_id: "a", datum: "2026-11-17", zdroj: "mf", kc_m2: 418 },
+];
+assert.strictEqual(N.poslednTrh(trhDny, "a").mf.kc_m2, 523);
+assert.strictEqual(N.poslednTrh([...trhDny].reverse(), "a").mf.kc_m2, 523); // nezávisle na pořadí
+const pTrh = N.podklad(byt, { ...data, najem_trh: trhDny }, cpi, "2026-11-17");
+assert.strictEqual(pTrh.varianty.find((v) => v.klic === "mf").kcM2, 523);
+
 console.log("test_najem: OK");

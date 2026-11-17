@@ -121,7 +121,9 @@
     const out = {};
     for (const r of trh.filter((x) => x.byt_id === bytId)) {
       const k = r.zdroj;
-      if (!out[k] || String(r.datum) > String(out[k].datum)) out[k] = r;
+      const nove = !out[k] || String(r.datum) > String(out[k].datum)
+        || (String(r.datum) === String(out[k].datum) && Number(r.id || 0) > Number(out[k].id || 0));
+      if (nove) out[k] = r; // stejné datum: vyhrává novější záznam
     }
     return out;
   }
@@ -161,11 +163,31 @@
       navrhKcM2: navrh && plocha ? F.num(navrh.navrh) / plocha : null };
   }
 
-  // Byty seřazené podle konce smlouvy (nejdřív ty, co končí dřív; bez konce nakonec)
+  // Nejbližší datum, kdy je u bytu potřeba něco řešit: konec smlouvy, nebo (nevyřešené) zvýšení podle doložky
+  function nejblizsiTermin(byt, data, cpi, dnes) {
+    const kandidati = [];
+    const akt = aktualniNajem(byt, data.pronajmy, dnes);
+    if (akt && akt.do) kandidati.push(String(akt.do).slice(0, 10));
+    const d = dolozka(byt, data, cpi, dnes);
+    if (d && !d.vyreseno) kandidati.push(d.datum);
+    kandidati.sort();
+    return kandidati[0] || null;
+  }
+
+  // Byty od nejbližšího termínu; byt určený k prodeji (k_prodeji) úplně dole
+  function seradBytyPodleTerminu(data, cpi, dnes) {
+    const klic = (b) => nejblizsiTermin(b, data, cpi, dnes);
+    return [...data.byty].sort((a, b) => {
+      if (!!a.k_prodeji !== !!b.k_prodeji) return a.k_prodeji ? 1 : -1;
+      const ka = klic(a), kb = klic(b);
+      if (ka !== kb) return ka === null ? 1 : kb === null ? -1 : ka < kb ? -1 : 1;
+      return (a.poradi ?? 0) - (b.poradi ?? 0) || String(a.nazev).localeCompare(String(b.nazev), "cs");
+    });
+  }
+
+  // Podklady v pořadí podle nejbližšího termínu
   function poradiPodleKonce(data, cpi, dnes) {
-    const a = data.byty.map((b) => podklad(b, data, cpi, dnes));
-    const klic = (p) => (p.akt && p.akt.do ? F.d(p.akt.do).getTime() : Infinity);
-    return a.sort((x, y) => klic(x) - klic(y));
+    return seradBytyPodleTerminu(data, cpi, dnes).map((b) => podklad(b, data, cpi, dnes));
   }
 
   // ------------------------------------------------------------ barevné období nájmu (detail bytu)
@@ -259,7 +281,7 @@
     return out.filter((x) => !x.vyreseno && F.d(x.datum) <= hranice && (x.dni >= -60 || x.typ === "trh")).sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : 0));
   }
 
-  const Najem = { ZDROJE, DNI_PRED_KONCEM, DNI_ZACIT, DNI_ODESLAT, DNI_STARE_TRHU, posledniIndex, dolozka, barvyNajmu, upozorneniDolozky, terminy, stavCpi, terminyTrhu, TERMINY_TRHU, aktualniNajem, poslednTrh, posledniNavrh, podklad, poradiPodleKonce };
+  const Najem = { ZDROJE, DNI_PRED_KONCEM, DNI_ZACIT, DNI_ODESLAT, DNI_STARE_TRHU, posledniIndex, dolozka, barvyNajmu, nejblizsiTermin, seradBytyPodleTerminu, upozorneniDolozky, terminy, stavCpi, terminyTrhu, TERMINY_TRHU, aktualniNajem, poslednTrh, posledniNavrh, podklad, poradiPodleKonce };
   root.Najem = Najem;
   if (typeof module !== "undefined") module.exports = Najem;
 })(typeof window !== "undefined" ? window : globalThis);
