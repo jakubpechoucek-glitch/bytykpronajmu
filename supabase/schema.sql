@@ -87,6 +87,9 @@ create table if not exists public.pronajmy (
 -- pro databáze založené starší verzí skriptu
 alter table public.pronajmy add column if not exists typ text not null default 'smlouva' check (typ in ('smlouva','dodatek'));
 alter table public.pronajmy add column if not exists dokument text;
+-- inflační doložka: nájem lze po prvním roce zvýšit o inflaci (docs/11-inflacni-dolozka.md)
+alter table public.pronajmy add column if not exists inflacni_dolozka boolean not null default false;
+alter table public.pronajmy add column if not exists zvyseni_od date;   -- prázdné = první výročí začátku smlouvy
 alter table public.pronajmy add column if not exists zaloha_mesic numeric(12,2);
 
 -- Skutečně inkasované nájemné po měsících (mesic = 1. den měsíce)

@@ -30,6 +30,20 @@ Ruční zápis je jediné okno **Zapsat čtvrtletní data**: datum, a pro každ�
 čísla (Deloitte, MF). U políček je vidět, co bylo zapsáno naposled. Prázdné pole
 = beze změny. Údaje starší než 135 dní se označí „zastaralé“.
 
+## Kdy zapisovat čtvrtletní data
+
+**Do 20. února, května, srpna a listopadu.** Ministerstvo financí zveřejňuje cenovou
+mapu nejpozději 45 dnů po konci čtvrtletí (vyhláška 456/2024 Sb.), tedy do 14.–15. dne
+těchto měsíců; 20. je termín s rezervou. U Deloitte Rent Indexu pevné datum vydání
+neznám, proto se řídí stejným termínem (předpoklad).
+
+Aplikace na stránce Nový nájem v panelu „Zdroje dat“ ukazuje, kdy je další zápis, a když
+termín nastal a poslední zápis je starší (nebo žádný), zobrazí varování. Zápis do 14 dnů
+před termínem se ještě počítá za nynější kolo. V Google Kalendáři je opakovaná událost
+na 20. 2., 5., 8. a 11.
+
+Termíny a inflační doložka (zvýšení nájmu po prvním roce) viz [11](11-inflacni-dolozka.md).
+
 ## Stahování z ČSÚ
 
 - Skript `tools/stahni_inflaci_najmu.py` (jen standardní Python) vytvoří

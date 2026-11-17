@@ -93,4 +93,95 @@ if (fs.existsSync(f)) {
   assert.ok(N.posledniIndex(j).idx > 90 && N.posledniIndex(j).idx < 160);
 }
 
+// termíny čtvrtletních dat: 20. 2., 5., 8., 11.
+const tr = (datum) => (datum ? [{ byt_id: "a", datum, zdroj: "mf", kc_m2: 400 }] : []);
+let tt = N.terminyTrhu(tr("2026-10-01"), "2026-11-17");
+assert.strictEqual(tt.posledni, "2026-08-20");
+assert.strictEqual(tt.dalsi, "2026-11-20");
+assert.strictEqual(tt.dniDoDalsiho, 3);
+assert.strictEqual(tt.splatne, false); // zapsáno 1. 10., termín 20. 8. je už pokrytý
+tt = N.terminyTrhu(tr("2026-10-01"), "2026-11-21"); // termín 20. 11. nastal, zápis z 1. 10. je starý
+assert.strictEqual(tt.posledni, "2026-11-20");
+assert.strictEqual(tt.splatne, true);
+tt = N.terminyTrhu(tr("2026-11-10"), "2026-11-21"); // zápis krátce před termínem se počítá
+assert.strictEqual(tt.splatne, false);
+tt = N.terminyTrhu(tr("2026-11-01"), "2026-11-21"); // víc než 14 dní před termínem už ne
+assert.strictEqual(tt.splatne, true);
+assert.strictEqual(N.terminyTrhu([], "2026-11-17").splatne, true);
+tt = N.terminyTrhu(tr("2026-11-25"), "2027-01-05"); // přechod roku
+assert.strictEqual(tt.posledni, "2026-11-20");
+assert.strictEqual(tt.dalsi, "2027-02-20");
+assert.strictEqual(tt.splatne, false);
+
+// ---- inflační doložka (zvýšení po prvním roce; počítá se jen inflace nájmů)
+const sm = (extra = {}) => ({ byt_id: "d", najemce: "X", od: "2026-01-01", do: "2027-12-31", najem_mesic: 22000, typ: "smlouva", inflacni_dolozka: true, ...extra });
+const dd = (pron, navrhy = []) => ({ byty: [{ id: "d", nazev: "D", plocha_m2: 50 }], pronajmy: pron, najem_trh: [], najem_navrhy: navrhy, hypoteky: [] });
+const byD = (x) => x.byty[0];
+assert.strictEqual(N.DNI_ZACIT, 60);
+assert.strictEqual(N.DNI_ODESLAT, 30);
+
+// 2letá smlouva od 1. 1. 2026: zvýšení lze od 1. 1. 2027, začít 60 dní předem (2. 11.), odeslat 30 dní předem (2. 12.)
+const d0 = dd([sm()]);
+let dl = N.dolozka(byD(d0), d0, cpi, "2026-11-17");
+assert.strictEqual(dl.datum, "2027-01-01");
+assert.strictEqual(dl.zacit, "2026-11-02");
+assert.strictEqual(dl.odeslat, "2026-12-02");
+assert.strictEqual(dl.dniDoDatumu, 45);
+assert.strictEqual(dl.dniDoOdeslani, 15);
+assert.strictEqual(dl.kReseni, true);
+assert.strictEqual(dl.poTerminu, false);
+assert.strictEqual(dl.vyreseno, false);
+// po termínu odeslání
+dl = N.dolozka(byD(d0), d0, cpi, "2026-12-05");
+assert.strictEqual(dl.poTerminu, true);
+// před začátkem řešení se nehlásí
+dl = N.dolozka(byD(d0), d0, cpi, "2026-11-01");
+assert.strictEqual(dl.kReseni, false);
+// smlouva začínající uprostřed roku: první výročí
+const dm = dd([sm({ od: "2026-06-01", do: "2028-05-31" })]);
+dl = N.dolozka(byD(dm), dm, cpi, "2026-11-17");
+assert.strictEqual(dl.datum, "2027-06-01");
+assert.strictEqual(dl.zacit, "2027-04-02");
+assert.strictEqual(dl.kReseni, false);
+// 29. 2. + 1 rok = 28. 2.
+const dy = dd([sm({ od: "2028-02-29", do: "2030-02-28" })]);
+assert.strictEqual(N.dolozka(byD(dy), dy, cpi, "2028-03-01").datum, "2029-02-28");
+// ručně zadané datum má přednost
+const dz = dd([sm({ zvyseni_od: "2027-02-01" })]);
+assert.strictEqual(N.dolozka(byD(dz), dz, cpi, "2026-11-17").datum, "2027-02-01");
+// roční smlouva: do jejího konce už zvýšení nenastane
+const d1 = dd([sm({ do: "2026-12-31" })]);
+assert.strictEqual(N.dolozka(byD(d1), d1, cpi, "2026-11-17"), null);
+// bez doložky nic
+const dn = dd([sm({ inflacni_dolozka: false })]);
+assert.strictEqual(N.dolozka(byD(dn), dn, cpi, "2026-11-17"), null);
+// vyřešeno: schválený návrh k datu zvýšení, nebo už platící dodatek
+const dv = dd([sm()], [{ id: 1, byt_id: "d", plati_od: "2027-01-01", navrh: 23000, stav: "schvaleno" }]);
+assert.strictEqual(N.dolozka(byD(dv), dv, cpi, "2026-11-17").vyreseno, true);
+assert.strictEqual(N.dolozka(byD(dv), dv, cpi, "2026-11-17").kReseni, false);
+const dv2 = dd([sm(), sm({ od: "2027-01-01", typ: "dodatek", najem_mesic: 23000 })]);
+assert.strictEqual(N.dolozka(byD(dv2), dv2, cpi, "2026-11-17").vyreseno, true);
+const dnv = dd([sm()], [{ id: 1, byt_id: "d", plati_od: "2027-01-01", navrh: 23000, stav: "navrh" }]);
+assert.strictEqual(N.dolozka(byD(dnv), dnv, cpi, "2026-11-17").vyreseno, false); // jen návrh nestačí
+
+// podklad: inflace nájmů (+6,1 %), žádná obecná inflace, příznak k řešení
+const dp = N.podklad(byD(d0), d0, cpi, "2026-11-17");
+assert.strictEqual(dp.varianty.find((v) => v.klic === "inflace").castka, 23342);
+assert.strictEqual(dp.varianty.some((v) => v.klic === "obecna"), false);
+assert.strictEqual(dp.kReseni, true);
+
+// upozornění a termíny
+let up = N.upozorneniDolozky(d0, cpi, "2026-11-17");
+assert.strictEqual(up.length, 1);
+assert.strictEqual(up[0].uroven, "varovani");
+assert.strictEqual(up[0].typ, "dolozka");
+assert.strictEqual(N.upozorneniDolozky(d0, cpi, "2026-12-05")[0].uroven, "chyba"); // po termínu odeslání
+assert.strictEqual(N.upozorneniDolozky(d0, cpi, "2026-11-01").length, 0);
+const tm = N.terminy(d0, cpi, "2026-11-17");
+assert.deepStrictEqual(tm.map((x) => x.typ), ["trh", "dolozka-zacit", "dolozka-odeslat", "dolozka", "konec"]); // trh: zmeškaný termín 20. 8., data nikdy nezapsána
+assert.ok(tm.every((x, i) => i === 0 || tm[i - 1].datum <= x.datum));
+assert.strictEqual(tm.find((x) => x.typ === "dolozka-odeslat").dni, 15);
+assert.strictEqual(tm.find((x) => x.typ === "dolozka-zacit").dni, -15);
+assert.strictEqual(N.terminy(dv, cpi, "2026-11-17").some((x) => x.typ.startsWith("dolozka")), false); // vyřešené se nehlídá
+
 console.log("test_najem: OK");
