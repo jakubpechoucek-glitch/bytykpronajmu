@@ -114,9 +114,36 @@ create table if not exists public.inflace (
   mira numeric(7,5) not null
 );
 
+-- Tržní nájemné za m² z externích zdrojů (Deloitte Rent Index, cenová mapa MF…);
+-- zapisuje se jednou za čtvrtletí, slouží jako podklad pro nové nájemné
+create table if not exists public.najem_trh (
+  id      bigint generated always as identity primary key,
+  byt_id  text not null references public.byty(id) on delete cascade on update cascade,
+  datum   date not null,                         -- ke kterému dni údaj platí / kdy byl zjištěn
+  zdroj   text not null check (zdroj in ('deloitte','mf','jiny')),
+  kc_m2   numeric(10,2) not null,
+  poznamka text
+);
+
+-- Návrh nového nájemného (konzultace s Janou) – jeden řádek = jedno prodloužení
+create table if not exists public.najem_navrhy (
+  id        bigint generated always as identity primary key,
+  byt_id    text not null references public.byty(id) on delete cascade on update cascade,
+  plati_od  date not null,                       -- od kdy má nové nájemné platit
+  navrh     numeric(12,2) not null,
+  stav      text not null default 'navrh' check (stav in ('navrh','schvaleno','odeslano')),
+  poznamka  text,
+  upravil   text,                                -- kdo naposledy změnil
+  upraveno  timestamptz not null default now(),
+  schvalil  text,
+  schvaleno timestamptz
+);
+
 create index if not exists odhady_byt_idx   on public.odhady(byt_id, datum);
 create index if not exists pronajmy_byt_idx on public.pronajmy(byt_id, od);
 create index if not exists hypoteky_byt_idx on public.hypoteky(byt_id);
+create index if not exists najem_trh_byt_idx on public.najem_trh(byt_id, datum);
+create index if not exists najem_navrhy_byt_idx on public.najem_navrhy(byt_id, plati_od);
 
 -- ---------------------------------------------------------------- RLS
 alter table public.clenove  enable row level security;
@@ -126,6 +153,8 @@ alter table public.pronajmy enable row level security;
 alter table public.najemne  enable row level security;
 alter table public.hypoteky enable row level security;
 alter table public.inflace  enable row level security;
+alter table public.najem_trh    enable row level security;
+alter table public.najem_navrhy enable row level security;
 
 do $$
 declare t text;
@@ -135,7 +164,7 @@ begin
   create policy clen_cte on public.clenove
     for select to authenticated using (public.je_clen());
 
-  foreach t in array array['byty','odhady','pronajmy','najemne','hypoteky','inflace'] loop
+  foreach t in array array['byty','odhady','pronajmy','najemne','hypoteky','inflace','najem_trh','najem_navrhy'] loop
     execute format('drop policy if exists rodina on public.%I', t);
     execute format(
       'create policy rodina on public.%I for all to authenticated

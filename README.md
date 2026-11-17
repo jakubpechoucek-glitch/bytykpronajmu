@@ -41,6 +41,7 @@ k jednorázovému importu, dál se vše eviduje a upravuje přímo na webu.
 | [docs/06-nesrovnalosti-v-datech.md](docs/06-nesrovnalosti-v-datech.md) | Chyby a nejasnosti nalezené v Excelu |
 | [docs/07-otevrene-otazky.md](docs/07-otevrene-otazky.md) | Rozhodnutí a otevřené otázky |
 | [docs/08-nastaveni-supabase.md](docs/08-nastaveni-supabase.md) | Jednorázové nastavení databáze a přihlášení |
+| [docs/09-novy-najem.md](docs/09-novy-najem.md) | Podklad pro nový nájem: inflace z ČSÚ, tržní data, návrh a schválení |
 
 ## Struktura
 
@@ -48,12 +49,17 @@ k jednorázovému importu, dál se vše eviduje a upravuje přímo na webu.
 index.html            aplikace (přehled · detail bytu · finance)
 css/app.css
 js/finance.js         výpočty (CAGR, yield, XIRR, odpisy, upozornění) – bez DOM
+js/najem.js           podklad pro nový nájem (inflace, trh, návrh) – bez DOM
+indexy/               index nájmů z ČSÚ (stahuje GitHub Actions)
+.github/workflows/    měsíční stažení indexu nájmů
 js/data.js            úložiště: Supabase, nebo paměť (?demo)
 js/demo-data.js       smyšlená ukázková data
 js/app.js             obrazovky a editace
 supabase/schema.sql   tabulky + pravidla přístupu (RLS)
 tools/import_excel.py import Excelu → SQL (výstup necommitovat)
 tools/test_finance.js testy výpočtů: node tools/test_finance.js
+tools/test_najem.js   testy podkladu nájmu: node tools/test_najem.js
+tools/stahni_inflaci_najmu.py  stažení indexu nájmů z ČSÚ
 ```
 
 Při změně CSS/JS zvýšit `?v=…` u odkazů v `index.html` (stačí krátký hash
@@ -80,3 +86,6 @@ nepatří osobní údaje nájemníků ani vygenerovaný `import.sql` (`data/`,
 - [x] Založit projekt Supabase a vložit klíče (viz docs/08)
 - [x] Sloučit do `main` a zapnout GitHub Pages
 - [x] Přihlášení přes Google
+- [x] Nový nájem: inflace nájmů z ČSÚ se stahuje sama, tržní data zápisem jednou za čtvrtletí, návrh a schválení druhým členem rodiny (docs/09)
+- [ ] Spustit nový `supabase/schema.sql` v databázi (tabulky `najem_trh`, `najem_navrhy`) – čeká na potvrzení
+- [ ] Sloučit do `main` a ověřit první běh Actions „Index nájmů z ČSÚ“

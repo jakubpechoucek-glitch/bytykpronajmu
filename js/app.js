@@ -3,6 +3,7 @@
   "use strict";
 
   const F = window.Finance;
+  const N = window.Najem;
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
   const esc = (t) => (t === null || t === undefined ? "" : String(t)).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -11,6 +12,9 @@
   let uloziste = null;
   let data = null;
   let grafy = [];
+  let cpi = null;        // indexy/najemne-cpi.json (ČSÚ)
+  let cpiChyba = null;
+  let uzivatel = "";    // jméno přihlášeného (pro „kdo schválil“)
 
   function dnes() {
     const t = new Date();
@@ -26,16 +30,18 @@
       document.documentElement.classList.remove("auth-ceka");
       $("#demo-banner").hidden = false;
       uloziste = window.Data.pametoveUloziste(window.DEMO_DATA);
+      uzivatel = "Ukázka";
       $("#who").innerHTML = `<span>Ukázka</span><a href="./">Ostrá data</a>`;
     } else {
       const s = await window.RodinaAuth.vyzadujPrihlaseni();
       if (!s) return;
       uloziste = window.Data.supabaseUloziste(window.RodinaAuth.client);
+      uzivatel = s.jmeno || "";
       $("#who").innerHTML = `<span>${esc(s.jmeno)}</span><a href="/rozcestnik/">Rozcestník</a><button type="button" id="odhlasit">Odhlásit</button>`;
       $("#odhlasit").onclick = () => window.RodinaAuth.odhlasit();
     }
     try {
-      await nacti();
+      await Promise.all([nacti(), nactiCpi()]);
     } catch (e) {
       $("#main").innerHTML = `<p class="err">Data se nepodařilo načíst: ${esc(e.message)}</p>`;
       return;
@@ -46,6 +52,20 @@
 
   async function nacti() {
     data = await uloziste.nacti();
+  }
+
+  // Index nájmů z ČSÚ: soubor vytváří měsíční úloha na GitHubu. Chyba se neskrývá – ukáže se na stránce Nový nájem.
+  async function nactiCpi() {
+    try {
+      const r = await fetch("indexy/najemne-cpi.json", { cache: "no-cache" });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      cpi = await r.json();
+      cpiChyba = null;
+    } catch (e) {
+      cpi = null;
+      cpiChyba = e.message || String(e);
+      console.error("Index nájmů z ČSÚ se nepodařilo načíst:", e);
+    }
   }
 
   // ============================================================== router
@@ -62,6 +82,8 @@
       main.innerHTML = `<p>Byt nenalezen. <a href="#/">Zpět na přehled</a></p>`;
     } else if (cesta === "finance") {
       vykresliFinance(main);
+    } else if (cesta === "najem") {
+      vykresliNajem(main, param);
     } else {
       vykresliPrehled(main);
     }
@@ -69,7 +91,9 @@
   }
 
   function vykresliNav(aktivni) {
-    const odkazy = [["prehled", "#/", "Přehled"], ...serazeneByty().map((b) => [b.id, `#/byt/${encodeURIComponent(b.id)}`, b.nazev]), ["finance", "#/finance", "Finance"]];
+    const kReseni = N.poradiPodleKonce(data, cpi, dnes()).filter((p) => p.kReseni).length;
+    const odkazy = [["prehled", "#/", "Přehled"], ...serazeneByty().map((b) => [b.id, `#/byt/${encodeURIComponent(b.id)}`, b.nazev]),
+      ["najem", "#/najem", kReseni ? `Nový nájem (${kReseni})` : "Nový nájem"], ["finance", "#/finance", "Finance"]];
     $("#nav").innerHTML = odkazy.map(([id, href, txt]) => `<a href="${href}" class="${id === aktivni ? "on" : ""}">${esc(txt)}</a>`).join("");
     const on = $("#nav .on");
     if (on) on.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -153,6 +177,7 @@
   const kpi = (l, v, s = "", cls = "", k = null) => `<div class="kpi ${cls}"><div class="l">${l}${k ? napoveda(k) : ""}</div><div class="v">${v}</div>${s ? `<div class="s">${s}</div>` : ""}</div>`;
   const znamenko = (v, txt) => (v === null || v === undefined ? txt : `<span class="${v >= 0 ? "pos" : "neg"}">${v > 0 ? "+" : ""}${txt}</span>`);
   const pct = (v, des) => F.fmtPct(v, des);
+  const odkazPodkladu = (u) => (u.typ === "konec-smlouvy" ? ` · <a href="#/najem/${encodeURIComponent(u.byt.id)}">podklad pro nový nájem →</a>` : "");
 
   function stavPronajmu(p) {
     const t = F.d(dnes());
@@ -240,6 +265,19 @@
       { k: "splacena", l: "Splacená", t: "bool" },
       { k: "poznamka", l: "Poznámka", t: "area", wide: true },
     ],
+    navrh: [
+      { k: "navrh", l: "Nové nájemné [Kč/měs.]", t: "num", req: true },
+      { k: "plati_od", l: "Platí od", t: "date", req: true },
+      { k: "stav", l: "Stav", t: "select", def: "navrh", moznosti: [["navrh", "Návrh (k projednání v rodině)"], ["schvaleno", "Schváleno"], ["odeslano", "Odesláno nájemníkovi"]],
+        help: "Změníš-li částku schváleného návrhu, vrátí se automaticky na „Návrh“." },
+      { k: "poznamka", l: "Poznámka (proč tato částka, co zaznělo při konzultaci…)", t: "area", wide: true },
+    ],
+    trh: [
+      { k: "datum", l: "Datum údaje", t: "date", req: true },
+      { k: "zdroj", l: "Zdroj", t: "select", def: "deloitte", moznosti: Object.entries(N.ZDROJE) },
+      { k: "kc_m2", l: "Nájemné [Kč/m² měsíčně]", t: "num", req: true },
+      { k: "poznamka", l: "Poznámka", t: "text", wide: true },
+    ],
     inflace: [
       { k: "rok", l: "Rok", t: "int", req: true },
       { k: "mira", l: "Průměrná roční inflace [%]", t: "pct", req: true },
@@ -258,6 +296,7 @@
   function pole(p, v) {
     const id = `f-${p.k}`;
     const val = v ?? p.def ?? "";
+    if (p.t === "nadpis") return `<h3 class="f-nadpis">${p.l}</h3>`;
     let input;
     if (p.t === "select") input = `<select id="${id}" name="${p.k}">${p.moznosti.map(([h, t]) => `<option value="${esc(h)}" ${String(val) === h ? "selected" : ""}>${esc(t)}</option>`).join("")}</select>`;
     else if (p.t === "area") input = `<textarea id="${id}" name="${p.k}">${esc(val)}</textarea>`;
@@ -273,6 +312,7 @@
   function hodnotyFormulare(pole_, form) {
     const out = {};
     for (const p of pole_) {
+      if (p.t === "nadpis") continue;
       const el = form.elements[p.k];
       if (p.t === "bool") { out[p.k] = el.checked; continue; }
       const raw = el.value.trim();
@@ -368,7 +408,7 @@
         ${kpi("Nájemné celkem", F.fmtMil(p.najemCelkem), "vše zapsané od pořízení", "", "najemCelkem")}
       </div>
       ${upoz.length ? `<section class="card"><h2>Upozornění</h2><ul class="alerts">
-        ${upoz.map((u) => `<li class="${u.uroven}"><span><a href="#/byt/${encodeURIComponent(u.byt.id)}">${esc(u.byt.nazev)}</a> – ${esc(u.text)}</span></li>`).join("")}
+        ${upoz.map((u) => `<li class="${u.uroven}"><span><a href="#/byt/${encodeURIComponent(u.byt.id)}">${esc(u.byt.nazev)}</a> – ${esc(u.text)}${odkazPodkladu(u)}</span></li>`).join("")}
       </ul></section>` : ""}
       <section class="card">
         <h2>Byty</h2>
@@ -461,7 +501,7 @@
         ${kpi("IRR", pct(s.irr), pasmo ? `${pasmo.nazev}: ${pasmo.text.split(",")[0].toLowerCase()}` : "drženo méně než rok", "", "irr")}
       </div>
 
-      ${upoz.length ? `<section class="card"><h2>Upozornění</h2><ul class="alerts">${upoz.map((u) => `<li class="${u.uroven}"><span>${esc(u.text)}</span></li>`).join("")}</ul></section>` : ""}
+      ${upoz.length ? `<section class="card"><h2>Upozornění</h2><ul class="alerts">${upoz.map((u) => `<li class="${u.uroven}"><span>${esc(u.text)}${odkazPodkladu(u)}</span></li>`).join("")}</ul></section>` : ""}
 
       <div class="cols">
         <section class="card">
@@ -499,7 +539,7 @@
       </div>
 
       <section class="card" style="margin-top:20px">
-        <div class="card-head"><h2>Pronájmy</h2><button class="btn small" id="novy-pronajem">+ Nová smlouva</button></div>
+        <div class="card-head"><h2>Pronájmy</h2><div class="actions"><a class="btn small" href="#/najem/${encodeURIComponent(byt.id)}">Podklad pro nový nájem</a><button class="btn small" id="novy-pronajem">+ Nová smlouva</button></div></div>
         ${pron.length ? `<div class="scroll"><table class="tbl pron">
           <thead><tr><th>#</th><th>Nájemce / dokument</th><th>Od</th><th>Do</th><th></th><th class="num">Nájem</th><th class="num">Kauce</th><th class="num">Splatnost</th><th>Účet</th><th>Kontakt</th><th></th></tr></thead>
           ${(() => {
@@ -716,6 +756,205 @@
     await provest(async () => {
       for (const n of nove) await uloziste.uloz("najemne", { byt_id: n.byt_id, mesic: n.mesic, castka: n.castka }, null);
     }, `Doplněno ${nove.length} měsíců`);
+  }
+
+  // ============================================================== nový nájem
+  const ODKAZ_DELOITTE = "https://www.deloitte.com/cz-sk/cs/about/press-room.html";
+  const ODKAZ_MF = "https://mf.gov.cz/cs/rozpoctova-politika/podpora-projektoveho-rizeni/cenova-mapa/kalkulacka-trzniho-najemneho";
+  const STAV_NAVRHU = { navrh: ["návrh", "warn"], schvaleno: ["schváleno", "ok"], odeslano: ["odesláno nájemníkovi", "mut"] };
+  const dnyTxt = (n) => (n === 0 ? "dnes" : `za ${n} ${n === 1 ? "den" : n < 5 ? "dny" : "dní"}`);
+
+  function stavSmlouvy(p) {
+    const a = p.akt;
+    if (!a) return `<span class="badge err">bez smlouvy</span>`;
+    if (!a.beziSmlouva) return `<span class="badge err">smlouva skončila ${F.fmtDatum(a.do)}</span>`;
+    if (!a.do) return `<span class="badge ok">doba neurčitá</span>`;
+    if (p.kReseni) return `<span class="badge warn">končí ${F.fmtDatum(a.do)} · ${dnyTxt(a.dnuDoKonce)}</span>`;
+    return `<span class="badge ok">běží do ${F.fmtDatum(a.do)} · ${dnyTxt(a.dnuDoKonce)}</span>`;
+  }
+
+  // Stav zdrojů dat nahoře na stránce: nic nesmí selhat potichu
+  function zdrojeDat(den) {
+    const out = [];
+    if (data._chybiTabulky && data._chybiTabulky.length) {
+      out.push(["chyba", `V databázi chybí tabulky ${esc(data._chybiTabulky.join(", "))}. Spusť znovu <code>supabase/schema.sql</code> (viz docs/08-nastaveni-supabase.md), jinak se tržní data a návrhy neuloží.`]);
+    }
+    const idx = N.posledniIndex(cpi);
+    const sc = N.stavCpi(cpi, den);
+    if (cpiChyba || !idx) {
+      out.push(["chyba", `Inflace nájmů z ČSÚ se nenačetla${cpiChyba ? ` (${esc(cpiChyba)})` : ""}. Varianta „inflace“ se proto nepočítá.`]);
+    } else {
+      out.push([sc.ok ? "info" : "varovani", `Inflace nájmů (ČSÚ): <b>${F.fmtPct(idx.koef - 1, 1)}</b> meziročně za ${F.fmtMesic(idx.mesic + "-01")} · ${esc(sc.text)}`]);
+    }
+    const trh = (data.najem_trh || []).map((r) => String(r.datum).slice(0, 10)).sort();
+    const posl = trh[trh.length - 1];
+    if (!posl) {
+      out.push(["varovani", "Zatím nejsou zapsaná žádná tržní data (Deloitte, Ministerstvo financí). Zapiš je tlačítkem „Zapsat čtvrtletní data“."]);
+    } else {
+      const stari = Math.round((F.d(den) - F.d(posl)) / 864e5);
+      out.push([stari > N.DNI_STARE_TRHU ? "varovani" : "info",
+        `Tržní data (Deloitte, MF): naposledy zapsána ${F.fmtDatum(posl)}${stari > N.DNI_STARE_TRHU ? ` – před ${stari} dny, je čas zapsat nová čtvrtletní čísla` : ""}`]);
+    }
+    return `<section class="card"><h2>Zdroje dat</h2><ul class="alerts">${out.map(([u, t]) => `<li class="${u}"><span>${t}</span></li>`).join("")}</ul></section>`;
+  }
+
+  // Odeslaný návrh, jehož datum už nastalo, je historie – nový nájem začíná novým návrhem
+  const jeVyrizeny = (n, den) => !!n && n.stav === "odeslano" && F.d(n.plati_od) <= F.d(den);
+
+  function kartaNajmu(p, den) {
+    const { byt, akt } = p;
+    const n = jeVyrizeny(p.navrh, den) ? null : p.navrh;
+    const m2 = F.num(byt.plocha_m2);
+    const radky = [];
+    if (akt && akt.najem) {
+      radky.push(`<tr class="nynejsi"><td>Nynější nájem${akt.najemce ? ` <span class="muted">(${esc(akt.najemce)})</span>` : ""}</td>
+        <td class="num hide-m">${akt.kcM2 ? F.fmtKc(akt.kcM2) : "—"}</td><td class="num"><b>${F.fmtKc(akt.najem)}</b></td><td class="num">—</td></tr>`);
+    }
+    for (const v of p.varianty) {
+      radky.push(`<tr>
+        <td>${esc(v.nazev)}${v.datum ? `<div class="radek-info"><span class="muted">údaj z ${F.fmtDatum(v.datum)}</span>${v.stare ? ` <span class="badge warn">zastaralé</span>` : ""}${v.id ? ` <button class="icon-btn" data-trh="${v.id}" title="Upravit údaj" aria-label="Upravit údaj">✎</button>` : ""}</div>` : ""}</td>
+        <td class="num hide-m">${v.kcM2 ? F.fmtKc(v.kcM2) : "—"}</td>
+        <td class="num"><b>${F.fmtKc(v.castka)}</b></td>
+        <td class="num">${v.rozdil === null ? "—" : znamenko(v.rozdil, pct(v.rozdil, 1))}</td>
+      </tr>`);
+    }
+    if (n) {
+      const [stavTxt, stavTrida] = STAV_NAVRHU[n.stav] || [n.stav, "mut"];
+      radky.push(`<tr class="navrh-row"><td><b>Tvůj návrh</b> <span class="badge ${stavTrida}">${stavTxt}</span><div class="radek-info"><span class="muted">platí od ${F.fmtDatum(n.plati_od)}</span></div></td>
+        <td class="num hide-m">${p.navrhKcM2 ? F.fmtKc(p.navrhKcM2) : "—"}</td><td class="num"><b>${F.fmtKc(n.navrh)}</b></td>
+        <td class="num">${p.navrhRozdil === null ? "—" : znamenko(p.navrhRozdil, pct(p.navrhRozdil, 1))}</td></tr>`);
+    }
+
+    const razitka = n ? [
+      n.upravil ? `upravil ${esc(n.upravil)}${n.upraveno ? ` (${F.fmtDatum(n.upraveno)})` : ""}` : "",
+      n.schvalil ? `schválil ${esc(n.schvalil)}${n.schvaleno ? ` (${F.fmtDatum(n.schvaleno)})` : ""}` : "",
+    ].filter(Boolean).join(" · ") : "";
+    const historie = p.navrh && !n ? `<p class="note">Poslední návrh: ${F.fmtKc(p.navrh.navrh)} od ${F.fmtDatum(p.navrh.plati_od)} (odesláno).</p>` : "";
+
+    const akce = !akt ? "" : n
+      ? `<button class="btn small" data-navrh="${esc(byt.id)}">Upravit návrh</button>
+         ${n.stav === "navrh" ? `<button class="btn primary small" data-stav="schvaleno" data-byt="${esc(byt.id)}">Schválit</button>` : ""}
+         ${n.stav === "schvaleno" ? `<button class="btn primary small" data-stav="odeslano" data-byt="${esc(byt.id)}">Označit jako odesláno nájemníkovi</button>` : ""}
+         ${n.stav !== "navrh" ? `<button class="btn small" data-stav="navrh" data-byt="${esc(byt.id)}">Vrátit k návrhu</button>` : ""}`
+      : `<button class="btn primary small" data-navrh="${esc(byt.id)}">Zapsat návrh</button>`;
+
+    return `<section class="card najem-card ${p.kReseni ? "k-reseni" : ""}" id="najem-${esc(byt.id)}">
+      <div class="card-head">
+        <div><h2><a href="#/najem/${encodeURIComponent(byt.id)}">${esc(byt.nazev)}</a></h2>
+          <div class="sub">${[esc(byt.dispozice), m2 ? `${naVstup(m2)} m²` : "", akt && akt.najemce && akt.do ? `smlouva do ${F.fmtDatum(akt.do)}` : ""].filter(Boolean).join(" · ")}</div></div>
+        <div>${stavSmlouvy(p)}</div>
+      </div>
+      ${akt && akt.najem ? `<div class="scroll"><table class="tbl var-table">
+        <thead><tr><th>Varianta</th><th class="num hide-m">Kč/m²</th><th class="num">Nájem / měs.</th><th class="num">Změna</th></tr></thead>
+        <tbody>${radky.join("")}</tbody></table></div>
+        ${p.varianty.some((v) => v.klic !== "inflace") ? "" : `<p class="note">Zatím chybí tržní údaje pro tento byt – zapiš je tlačítkem „Zapsat čtvrtletní data“ nahoře.</p>`}
+        ${!m2 ? `<p class="note err-text">U bytu chybí plocha, tržní varianty se bez ní nespočítají.</p>` : ""}`
+        : `<p class="muted">${akt ? "Ve smlouvě chybí výše nájmu." : "U bytu není žádná smlouva, podklad nejde spočítat."}</p>`}
+      ${n && n.poznamka ? `<p class="navrh-poznamka">${esc(n.poznamka)}</p>` : ""}
+      ${razitka ? `<p class="note">${razitka}</p>` : ""}
+      ${historie}
+      ${akce ? `<div class="actions navrh-akce">${akce}</div>` : ""}
+    </section>`;
+  }
+
+  function vykresliNajem(main, param) {
+    const den = dnes();
+    const jedenId = param ? decodeURIComponent(param) : null;
+    let polozky = N.poradiPodleKonce(data, cpi, den);
+    if (jedenId) polozky = polozky.filter((p) => p.byt.id === jedenId);
+    const porovnatSe = Object.fromEntries(polozky.map((p) => [p.byt.id, p]));
+
+    main.innerHTML = `
+      <div class="page-head">
+        <div>
+          <h1>Nový nájem</h1>
+          <p class="sub">Podklad pro prodloužení smluv: inflace nájmů, tržní nájemné a tvůj návrh. ${jedenId ? `<a href="#/najem">← všechny byty</a>` : "Byty jsou seřazené podle konce smlouvy."}</p>
+        </div>
+        <button class="btn" id="trh-zapsat">Zapsat čtvrtletní data</button>
+      </div>
+      ${zdrojeDat(den)}
+      ${polozky.length ? polozky.map((p) => kartaNajmu(p, den)).join("") : `<p class="muted">Byt nenalezen. <a href="#/najem">Zpět na všechny byty</a></p>`}
+      <p class="note">Varianta „inflace“ = nynější nájem × meziroční index cen nájemného za bydlení (ČSÚ). Tržní varianty = Kč/m² ze zdroje × plocha bytu.
+      Zdroje jsou orientační – rozhodnutí je na vás.</p>`;
+
+    $("#trh-zapsat").onclick = zapsatTrh;
+    $$("[data-navrh]", main).forEach((b) => (b.onclick = () => upravitNavrh(porovnatSe[b.dataset.navrh], den)));
+    $$("[data-stav]", main).forEach((b) => (b.onclick = () => zmenStavNavrhu(porovnatSe[b.dataset.byt].navrh, b.dataset.stav)));
+    $$("[data-trh]", main).forEach((b) => (b.onclick = () => {
+      const r = data.najem_trh.find((x) => String(x.id) === b.dataset.trh);
+      const byt = data.byty.find((x) => x.id === r.byt_id);
+      upravitZaznam("najem_trh", "trh", `Tržní údaj: ${byt.nazev}`, byt, r);
+    }));
+  }
+
+  // Kdo a kdy naposledy měnil návrh, kdo ho schválil
+  function razitko(stav, puvodni) {
+    const ted = new Date().toISOString();
+    const out = { upravil: uzivatel, upraveno: ted };
+    if (stav === "navrh") { out.schvalil = null; out.schvaleno = null; }
+    else if (!puvodni || puvodni.stav === "navrh" || !puvodni.schvalil) { out.schvalil = uzivatel; out.schvaleno = ted; }
+    return out;
+  }
+
+  function upravitNavrh(p, den) {
+    const n = jeVyrizeny(p.navrh, den) ? null : p.navrh;
+    const infl = p.varianty.find((v) => v.klic === "inflace");
+    const vychozi = n || {
+      navrh: infl ? Math.round(infl.castka / 100) * 100 : null,
+      plati_od: p.akt && p.akt.do ? F.iso(new Date(F.d(p.akt.do).getTime() + 864e5)) : null,
+      stav: "navrh",
+    };
+    formular({
+      titulek: `Návrh nového nájemného: ${p.byt.nazev}`,
+      pole: POLE.navrh,
+      hodnoty: vychozi,
+      ulozit: (v) => {
+        let stav = v.stav;
+        // změna částky nebo data u schváleného návrhu = je potřeba nové schválení
+        if (n && n.stav === "schvaleno" && stav === "schvaleno" &&
+            (Number(v.navrh) !== Number(n.navrh) || String(v.plati_od) !== String(n.plati_od).slice(0, 10))) stav = "navrh";
+        return uloziste.uloz("najem_navrhy", { ...v, stav, byt_id: p.byt.id, ...razitko(stav, n) }, n);
+      },
+      smazat: n ? () => uloziste.smaz("najem_navrhy", n) : null,
+    });
+  }
+
+  function zmenStavNavrhu(n, stav) {
+    const hlaska = { schvaleno: "Schváleno", odeslano: "Označeno jako odesláno", navrh: "Vráceno k návrhu" }[stav];
+    return provest(() => uloziste.uloz("najem_navrhy", { ...n, stav, ...razitko(stav, n) }, n), hlaska).catch(() => {});
+  }
+
+  // Jeden formulář pro tržní údaje všech bytů najednou (jednou za čtvrtletí)
+  function zapsatTrh() {
+    const byty = serazeneByty().filter((b) => F.num(b.plocha_m2));
+    if (!byty.length) return toast("Nejdřív doplň plochu bytů.", true);
+    const naposled = (b, z) => {
+      const r = N.poslednTrh(data.najem_trh || [], b.id)[z];
+      return r ? `naposled ${naVstup(Number(r.kc_m2))} Kč/m² (${F.fmtDatum(r.datum)})` : "zatím nezapsáno";
+    };
+    const polea = [{
+      k: "datum", l: "Údaje platí k", t: "date", req: true, def: dnes(), wide: true,
+      help: `Otevři <a href="${ODKAZ_DELOITTE}" target="_blank" rel="noopener">Deloitte Rent Index</a> (nejnovější zpráva, nájem v Kč/m² podle městské části) a
+        <a href="${ODKAZ_MF}" target="_blank" rel="noopener">kalkulačku MF</a> (adresa a parametry bytu). Co nevyplníš, zůstane beze změny.`,
+    }];
+    for (const b of byty) {
+      polea.push({ k: `h_${b.id}`, l: `${esc(b.nazev)} · ${naVstup(Number(b.plocha_m2))} m²`, t: "nadpis" });
+      polea.push({ k: `d_${b.id}`, l: "Deloitte [Kč/m²]", t: "num", help: naposled(b, "deloitte") });
+      polea.push({ k: `m_${b.id}`, l: "Ministerstvo financí [Kč/m²]", t: "num", help: naposled(b, "mf") });
+    }
+    formular({
+      titulek: "Čtvrtletní tržní data",
+      pole: polea,
+      ulozit: async (v) => {
+        const radky = [];
+        for (const b of byty) {
+          if (v[`d_${b.id}`] !== null) radky.push({ byt_id: b.id, datum: v.datum, zdroj: "deloitte", kc_m2: v[`d_${b.id}`] });
+          if (v[`m_${b.id}`] !== null) radky.push({ byt_id: b.id, datum: v.datum, zdroj: "mf", kc_m2: v[`m_${b.id}`] });
+        }
+        if (!radky.length) throw new Error("Nic nevyplněno – zadej aspoň jedno číslo.");
+        for (const r of radky) await uloziste.uloz("najem_trh", r, null);
+      },
+    });
   }
 
   // ============================================================== finance

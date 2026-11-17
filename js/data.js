@@ -1,6 +1,6 @@
 // Datová vrstva: Supabase (ostrá data za přihlášením) nebo paměť (?demo).
 // Rozhraní obou úložišť:
-//   nacti()                  → { byty, odhady, pronajmy, najemne, hypoteky, inflace }
+//   nacti()                  → { byty, odhady, pronajmy, najemne, hypoteky, inflace, najem_trh, najem_navrhy }
 //   uloz(tabulka, radek, puvodni) → uložený řádek (puvodni = null → nový záznam)
 //   smaz(tabulka, radek)
 (function (root) {
@@ -14,6 +14,8 @@
     najemne:  { pk: ["byt_id", "mesic"] },
     hypoteky: { pk: ["id"], identity: true },
     inflace:  { pk: ["rok"] },
+    najem_trh:    { pk: ["id"], identity: true, volitelna: true },
+    najem_navrhy: { pk: ["id"], identity: true, volitelna: true },
   };
 
   function bezIdentity(t, radek) {
@@ -29,9 +31,15 @@
     return {
       ostra: true,
       async nacti() {
-        const out = {};
+        const out = { _chybiTabulky: [] };
         await Promise.all(Object.keys(TABULKY).map(async (t) => {
           const { data, error } = await client.from(t).select("*");
+          if (error && TABULKY[t].volitelna) {
+            // tabulka ještě nebyla v databázi založena (spustit supabase/schema.sql)
+            out[t] = [];
+            out._chybiTabulky.push(t);
+            return;
+          }
           chyba(error);
           out[t] = data;
         }));

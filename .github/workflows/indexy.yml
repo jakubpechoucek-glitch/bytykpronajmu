@@ -1,0 +1,30 @@
+# Měsíčně stáhne index nájmů z ČSÚ do indexy/najemne-cpi.json (viz docs/09-novy-najem.md).
+# ČSÚ zveřejňuje inflaci kolem 10. dne v měsíci, proto běh 12. a pro jistotu 20.
+name: Index nájmů z ČSÚ
+
+on:
+  schedule:
+    - cron: "17 5 12,20 * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  stahni:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stáhnout data ČSÚ
+        run: python3 tools/stahni_inflaci_najmu.py
+      - name: Uložit, pokud se něco změnilo
+        run: |
+          if git diff --quiet -- indexy/najemne-cpi.json; then
+            echo "Beze změny."
+            exit 0
+          fi
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add indexy/najemne-cpi.json
+          git commit -m "Index nájmů z ČSÚ: aktualizace dat"
+          git push
