@@ -1,4 +1,4 @@
-# Měsíčně stáhne index nájmů z ČSÚ do indexy/najemne-cpi.json (viz docs/09-novy-najem.md).
+# Měsíčně stáhne index nájmů z ČSÚ do indexy/najemne-cpi.json (viz docs/10-novy-najem.md).
 # ČSÚ zveřejňuje inflaci kolem 10. dne v měsíci, proto běh 12. a pro jistotu 20.
 name: Index nájmů z ČSÚ
 

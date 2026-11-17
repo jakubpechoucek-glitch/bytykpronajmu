@@ -4,6 +4,7 @@
 
   const F = window.Finance;
   const N = window.Najem;
+  const V = window.Vyuctovani;
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
   const esc = (t) => (t === null || t === undefined ? "" : String(t)).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -78,6 +79,11 @@
     const main = $("#main");
     if (cesta === "byt") {
       const byt = data.byty.find((b) => b.id === decodeURIComponent(param || ""));
+      const [, , cast, vid] = h.split("/");
+      if (byt && cast === "vyuctovani") {
+        const v = data.vyuctovani.find((x) => String(x.id) === vid);
+        if (v) return vykresliListinu(main, byt, v);
+      }
       if (byt) return vykresliByt(main, byt);
       main.innerHTML = `<p>Byt nenalezen. <a href="#/">Zpět na přehled</a></p>`;
     } else if (cesta === "finance") {
@@ -245,6 +251,7 @@
       { k: "do", l: "Do", t: "date", help: "Prázdné = doba neurčitá" },
       { k: "najem_mesic", l: "Nájem / měsíc [Kč]", t: "num" },
       { k: "kauce", l: "Kauce [Kč]", t: "num" },
+      { k: "zaloha_mesic", l: "Záloha na služby / měsíc [Kč]", t: "num", help: "Měsíční záloha na vodu, teplo a poplatky SVJ – podle ní se počítá vyúčtování" },
       { k: "splatnost_den", l: "Splatnost (den v měsíci)", t: "int" },
       { k: "ucet", l: "Na účet", t: "text" },
       { k: "dokument", l: "Dokument v Dropboxu", t: "text", wide: true, help: "Cesta k souboru, např. /Data z Dellu/Nemovitosti/…/smlouva.docx, nebo odkaz https://…" },
@@ -328,6 +335,7 @@
   // Otevře dialog; ulozit(hodnoty) / smazat() vrací Promise
   function formular({ titulek, pole: pole_, hodnoty = {}, ulozit, smazat }) {
     const dlg = $("#dlg"), form = $("#dlg-form"), err = $("#dlg-err"), del = $("#dlg-del");
+    dlg.classList.remove("siroky");
     $("#dlg-title").textContent = titulek;
     $("#dlg-fields").innerHTML = pole_.map((p) => pole(p, hodnoty[p.k])).join("");
     err.hidden = true;
@@ -541,7 +549,7 @@
       <section class="card" style="margin-top:20px">
         <div class="card-head"><h2>Pronájmy</h2><div class="actions"><a class="btn small" href="#/najem/${encodeURIComponent(byt.id)}">Podklad pro nový nájem</a><button class="btn small" id="novy-pronajem">+ Nová smlouva</button></div></div>
         ${pron.length ? `<div class="scroll"><table class="tbl pron">
-          <thead><tr><th>#</th><th>Nájemce / dokument</th><th>Od</th><th>Do</th><th></th><th class="num">Nájem</th><th class="num">Kauce</th><th class="num">Splatnost</th><th>Účet</th><th>Kontakt</th><th></th></tr></thead>
+          <thead><tr><th>#</th><th>Nájemce / dokument</th><th>Od</th><th>Do</th><th></th><th class="num">Nájem</th><th class="num">Kauce</th><th class="num">Záloha</th><th class="num">Splatnost</th><th>Účet</th><th>Kontakt</th><th></th></tr></thead>
           ${(() => {
             // seskupit navazující záznamy téhož nájemce; rozbalený jen poslední
             const skupiny = [];
@@ -554,7 +562,7 @@
                 <td class="muted">${si + 1}.</td>
                 <td><span class="sipka">▸</span> <b>${esc(prvni.najemce)}</b> <span class="muted" style="font-size:.8rem">· ${g.length} ${g.length === 1 ? "dokument" : g.length < 5 ? "dokumenty" : "dokumentů"}</span></td>
                 <td>${F.fmtDatum(prvni.od)}</td><td>${posl.do ? F.fmtDatum(posl.do) : "neurčito"}</td><td>${stavPronajmu(souhrn)}</td>
-                <td class="num">${F.fmtKc(posl.najem_mesic)}</td><td class="num">${F.fmtKc(posl.kauce)}</td>
+                <td class="num">${F.fmtKc(posl.najem_mesic)}</td><td class="num">${F.fmtKc(posl.kauce)}</td><td class="num">${posl.zaloha_mesic ? F.fmtKc(posl.zaloha_mesic) : "—"}</td>
                 <td class="num">${posl.splatnost_den ? `do ${posl.splatnost_den}.` : "—"}</td><td>${esc(posl.ucet)}</td>
                 <td>${kontakt ? (kontakt.includes("@") ? `<a href="mailto:${esc(kontakt)}">${esc(kontakt)}</a>` : esc(kontakt)) : ""}</td><td></td>
               </tr>`;
@@ -564,7 +572,7 @@
                 return `<tr class="dokument">
                   <td></td><td>${typ}${doc ? ` <a href="${esc(doc)}" target="_blank" rel="noopener" title="${esc(p.dokument)}">📄</a>` : ""}${p.poznamka ? `<div class="muted" style="font-size:.8rem">${esc(p.poznamka)}</div>` : ""}</td>
                   <td>${F.fmtDatum(p.od)}</td><td>${p.do ? F.fmtDatum(p.do) : "neurčito"}</td><td>${stavPronajmu(p)}</td>
-                  <td class="num">${F.fmtKc(p.najem_mesic)}</td><td class="num">${F.fmtKc(p.kauce)}</td>
+                  <td class="num">${F.fmtKc(p.najem_mesic)}</td><td class="num">${F.fmtKc(p.kauce)}</td><td class="num">${p.zaloha_mesic ? F.fmtKc(p.zaloha_mesic) : "—"}</td>
                   <td class="num">${p.splatnost_den ? `do ${p.splatnost_den}.` : "—"}</td><td>${esc(p.ucet)}</td><td></td>
                   <td><button class="icon-btn" data-pronajem="${p.id}" title="Upravit">✎</button></td>
                 </tr>`;
@@ -574,6 +582,8 @@
           })()}</table></div>
           <p class="note">Kliknutím na nájemce rozbalíte jeho smlouvy a dodatky. 📄 otevře dokument v Dropboxu.</p>` : `<p class="muted">Zatím žádná smlouva.</p>`}
       </section>
+
+      ${sekceVyuctovani(byt)}
 
       <section class="card">
         <div class="card-head">
@@ -627,6 +637,8 @@
       tr.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); prepni(e); } };
     });
     $$("[data-pronajem]", main).forEach((b) => (b.onclick = () => upravitZaznam("pronajmy", "pronajem", "Upravit smlouvu", byt, pron.find((p) => String(p.id) === b.dataset.pronajem))));
+    $("#nove-vyuct").onclick = () => upravitVyuctovani(byt, null);
+    $$("[data-vyuct]", main).forEach((b) => (b.onclick = () => upravitVyuctovani(byt, data.vyuctovani.find((x) => String(x.id) === b.dataset.vyuct))));
     $("#novy-odhad").onclick = () => upravitZaznam("odhady", "odhad", "Nový odhad ceny", byt, null, { datum: dnes(), zdroj: "Atlas cen" });
     $$("[data-odhad]", main).forEach((b) => (b.onclick = () => upravitZaznam("odhady", "odhad", "Upravit odhad", byt, odhady.find((o) => String(o.id) === b.dataset.odhad))));
     $("#nova-hyp").onclick = () => upravitZaznam("hypoteky", "hypoteka", "Nová hypotéka", byt, null);
@@ -955,6 +967,268 @@
         for (const r of radky) await uloziste.uloz("najem_trh", r, null);
       },
     });
+  }
+
+  // ============================================================== vyúčtování záloh
+  const kc2 = (v) => (v === null || v === undefined || isNaN(v) ? "—" : Number(v).toLocaleString("cs-CZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/ /g, " ") + " Kč");
+  const cisloMeke = (x) => { try { return cislo(x ?? ""); } catch (e) { return null; } };
+  const mn = (x) => (x === null || x === undefined || x === "" ? "" : String(x).replace(".", ","));
+  const vysledekText = (r) => (r.preplatek ? "Přeplatek" : r.nedoplatek ? "Nedoplatek" : "Vyrovnáno");
+
+  function sekceVyuctovani(byt) {
+    const seznam = data.vyuctovani.filter((v) => v.byt_id === byt.id).sort((a, b) => b.rok - a.rok || (a.od < b.od ? 1 : -1));
+    const chybi = (data._chybiTabulky || []).includes("vyuctovani");
+    return `<section class="card" id="vyuctovani">
+      <div class="card-head"><h2>Vyúčtování záloh</h2><button class="btn small" id="nove-vyuct" ${chybi ? "disabled" : ""}>+ Nové vyúčtování</button></div>
+      ${chybi ? `<p class="err">V databázi chybí tabulka <code>vyuctovani</code>. Spusť znovu <code>supabase/schema.sql</code> v Supabase (SQL Editor).</p>` : ""}
+      ${seznam.length ? `<div class="scroll"><table class="tbl">
+        <thead><tr><th>Rok</th><th>Nájemce</th><th class="num">Náklady</th><th class="num">Zálohy</th><th class="num">Výsledek</th><th>Odesláno</th><th></th></tr></thead>
+        <tbody>${seznam.map((v) => {
+          const r = V.vypocet(v);
+          const badge = r.preplatek ? `<span class="badge ok">přeplatek</span>` : r.nedoplatek ? `<span class="badge err">nedoplatek</span>` : `<span class="badge mut">vyrovnáno</span>`;
+          return `<tr>
+            <td><b>${v.rok}</b>${F.fmtDatum(v.od) !== `1. 1. ${v.rok}` || F.fmtDatum(v.do) !== `31. 12. ${v.rok}` ? `<div class="muted" style="font-size:.78rem">${F.fmtDatum(v.od)} – ${F.fmtDatum(v.do)}</div>` : ""}</td>
+            <td>${esc(v.najemce)}</td>
+            <td class="num">${kc2(r.celkem)}</td><td class="num">${kc2(r.zalohy)}</td>
+            <td class="num">${badge} <span class="${r.preplatek ? "pos" : r.nedoplatek ? "neg" : ""}">${kc2(Math.abs(r.rozdil))}</span>${r.maVyrovnani ? `<div class="muted" style="font-size:.78rem">po vyrovnání kauce: ${r.kVraceni >= 0 ? "vrátit" : "doplatit"} ${kc2(Math.abs(r.kVraceni))}</div>` : ""}</td>
+            <td>${v.odeslano ? F.fmtDatum(v.odeslano) : `<span class="badge warn">neodesláno</span>`}</td>
+            <td class="num nowrap"><a class="btn small" href="#/byt/${encodeURIComponent(byt.id)}/vyuctovani/${v.id}">Tisk / PDF</a> <button class="icon-btn" data-vyuct="${v.id}" title="Upravit">✎</button></td>
+          </tr>`;
+        }).join("")}</tbody></table></div>
+        <p class="note">Přeplatek se vrací nájemníkovi, nedoplatek doplácí. „Tisk / PDF“ otevře čistou listinu pro nájemníka (v tiskovém dialogu zvol Uložit jako PDF).</p>`
+      : `<p class="muted">Zatím žádné vyúčtování. Při prvním se předvyplní zálohy ze smlouvy a typické položky.</p>`}
+    </section>`;
+  }
+
+  // ---- listina k tisku (čistá stránka pro nájemníka)
+  function vykresliListinu(main, byt, v) {
+    const r = V.vypocet(v);
+    const radek = (p) => {
+      let popis = "";
+      if (p.typ === "meridlo") popis = `${mn(p.stav_od)} → ${mn(p.stav_do)} ${esc(p.jednotka || "")} · spotřeba ${mn(V.spotreba(p))} ${esc(p.jednotka || "")} × ${kc2(Number(p.cena))}`;
+      else if (p.typ === "den") popis = `${kc2(Number(p.cena))} × ${mn(p.dny)} dní`;
+      return `<tr><td>${esc(p.nazev)}${popis ? `<div class="muted drobne">${popis}</div>` : ""}</td><td class="num">${kc2(p.naklad)}</td></tr>`;
+    };
+    const radky = r.nakladPol.map(radek).join("");
+    const nazevRadku = r.preplatek ? "Přeplatek – bude vrácen nájemci" : r.nedoplatek ? "Nedoplatek – k úhradě nájemcem" : "Vyúčtování je vyrovnané";
+    main.innerHTML = `
+      <div class="noprint listina-akce">
+        <a class="btn" href="#/byt/${encodeURIComponent(byt.id)}">← ${esc(byt.nazev)}</a>
+        <button class="btn primary" id="tisk">Vytisknout / uložit PDF</button>
+      </div>
+      <article class="listina">
+        <h1>Vyúčtování záloh za služby spojené s využíváním bytu</h1>
+        <dl class="info listina-hlava">
+          <dt>Byt</dt><dd>${esc(byt.nazev)}${byt.adresa ? `, ${esc(byt.adresa)}` : ""}${byt.dispozice ? ` (${esc(byt.dispozice)})` : ""}</dd>
+          <dt>Nájemce</dt><dd>${esc(v.najemce) || "—"}</dd>
+          <dt>Období</dt><dd>${F.fmtDatum(v.od)} – ${F.fmtDatum(v.do)}</dd>
+        </dl>
+        <table class="tbl listina-tbl">
+          <thead><tr><th>Položka</th><th class="num">Částka</th></tr></thead>
+          <tbody>${radky}</tbody>
+          <tfoot>
+            ${r.odpocty ? `<tr><td>Náklady před odečty</td><td class="num">${kc2(r.naklady)}</td></tr>` : ""}
+            <tr><td>Náklady celkem</td><td class="num">${kc2(r.celkem)}</td></tr>
+            <tr><td>Zaplacené zálohy${v.zalohy_celkem === null || v.zalohy_celkem === undefined || v.zalohy_celkem === "" ? ` (${mn(v.mesicu)} × ${kc2(Number(v.zaloha_mesic))})` : ""}</td><td class="num">${kc2(r.zalohy)}</td></tr>
+            <tr class="vysledek ${r.preplatek ? "pos" : r.nedoplatek ? "neg" : ""}"><td>${nazevRadku}</td><td class="num">${kc2(Math.abs(r.rozdil))}</td></tr>
+          </tfoot>
+        </table>
+        ${r.maVyrovnani ? `<h2 class="listina-h2">Vyrovnání při ukončení nájmu</h2>
+        <table class="tbl listina-tbl"><tbody>
+          <tr><td>${r.preplatek ? "Přeplatek ze služeb" : "Nedoplatek ze služeb"}</td><td class="num">${kc2(r.rozdil)}</td></tr>
+          ${r.vyrovnaniPol.map(radek).join("")}
+        </tbody><tfoot><tr class="vysledek ${r.kVraceni >= 0 ? "pos" : "neg"}"><td>${r.kVraceni >= 0 ? "Celkem k vrácení nájemci" : "Celkem doplatí nájemce"}</td><td class="num">${kc2(Math.abs(r.kVraceni))}</td></tr></tfoot></table>` : ""}
+        ${v.poznamka ? `<p class="drobne">${esc(v.poznamka)}</p>` : ""}
+      </article>`;
+    $("#tisk").onclick = () => window.print();
+  }
+
+  // ---- editor vyúčtování (vlastní dialog s položkami)
+  const TYPY_POLOZEK = Object.entries(V.TYPY);
+  const NOVA_POLOZKA = {
+    meridlo: { typ: "meridlo", nazev: "", jednotka: "m³", stav_od: "", stav_do: "", spotreba: "", cena: "" },
+    den: { typ: "den", nazev: "", cena: "", dny: "" },
+    castka: { typ: "castka", nazev: "", castka: "" },
+    odpocet: { typ: "odpocet", nazev: "Fond oprav", castka: "" },
+    kauce: { typ: "kauce", nazev: "Kauce včetně úroků", castka: "" },
+    srazka: { typ: "srazka", nazev: "", castka: "" },
+  };
+
+  function vychoziPolozky(byt, od, dny) {
+    // z předchozího vyúčtování: koncové stavy měřičů se stanou počátečními, ceny a odečty zůstanou k přepsání
+    const predchozi = data.vyuctovani.filter((x) => x.byt_id === byt.id && x.do < od).sort((a, b) => (a.do < b.do ? 1 : -1))[0];
+    if (predchozi) {
+      return (predchozi.polozky || []).filter((p) => p.typ !== "kauce" && p.typ !== "srazka").map((p) => {
+        const k = { ...NOVA_POLOZKA[p.typ], ...p };
+        if (p.typ === "meridlo") { k.stav_od = p.stav_do ?? ""; k.stav_do = ""; k.spotreba = ""; }
+        if (p.typ === "den") k.dny = dny;
+        if (p.typ === "castka" || p.typ === "odpocet") k.castka = "";
+        if (p.naklad_rucne !== undefined) k.naklad_rucne = "";
+        return k;
+      });
+    }
+    return [
+      { ...NOVA_POLOZKA.meridlo, nazev: "Teplá voda" },
+      { ...NOVA_POLOZKA.meridlo, nazev: "Studená voda" },
+      { ...NOVA_POLOZKA.meridlo, nazev: "Teplo", jednotka: "GJ" },
+      { ...NOVA_POLOZKA.castka, nazev: "Ostatní náklady (podle vyúčtování SVJ)" },
+      { ...NOVA_POLOZKA.odpocet },
+    ];
+  }
+
+  function upravitVyuctovani(byt, zaznam) {
+    const dlg = $("#dlg"), form = $("#dlg-form"), err = $("#dlg-err"), del = $("#dlg-del");
+    const pron = F.pronajmyBytu(byt, data.pronajmy);
+    const letos = F.d(dnes()).getUTCFullYear();
+
+    // stav editoru
+    const st = zaznam ? { ...zaznam, polozky: (zaznam.polozky || []).map((p) => ({ ...p })) } : (() => {
+      // období navazuje na poslední vyúčtování; končí koncem roku nebo dřív, když smlouva nájemce končí uprostřed roku
+      const navrh = V.navrhObdobi(pron, data.vyuctovani.filter((x) => x.byt_id === byt.id), dnes());
+      const od = navrh ? navrh.od : `${letos - 1}-01-01`, do_ = navrh ? navrh.do : `${letos - 1}-12-31`;
+      const rok = Number(do_.slice(0, 4));
+      const z = V.zalohyPodleSmluv(pron, od, do_);
+      return { rok, od, do: do_, najemce: z.najemce || "", zaloha_mesic: z.zaloha_mesic, mesicu: z.mesicu || 12,
+        zalohy_celkem: z.promenliva ? z.zalohy_celkem : null, odeslano: null, poznamka: "", polozky: vychoziPolozky(byt, od, V.pocetDni(od, do_)) };
+    })();
+
+    const hlavicka = [
+      { k: "rok", l: "Rok", t: "int", req: true },
+      { k: "od", l: "Období od", t: "date", req: true },
+      { k: "do", l: "Období do", t: "date", req: true },
+      { k: "najemce", l: "Nájemce", t: "text", wide: true },
+      { k: "zaloha_mesic", l: "Záloha / měsíc [Kč]", t: "num" },
+      { k: "mesicu", l: "Měsíců záloh", t: "num" },
+      { k: "zalohy_celkem", l: "Zálohy celkem [Kč]", t: "num", wide: true, help: "Vyplň jen když se záloha v roce měnila – přepíše záloha × měsíce" },
+      { k: "odeslano", l: "Odesláno nájemníkovi", t: "date" },
+      { k: "poznamka", l: "Poznámka (zobrazí se na listině)", t: "area", wide: true },
+    ];
+
+    $("#dlg-title").textContent = zaznam ? `Vyúčtování ${zaznam.rok} – ${byt.nazev}` : `Nové vyúčtování – ${byt.nazev}`;
+    err.hidden = true;
+    del.hidden = !zaznam;
+    dlg.classList.add("siroky");
+
+    const vykresliPolozky = () => {
+      $("#vy-polozky").innerHTML = st.polozky.map((p, i) => {
+        const f = (k, l, extra = "") => `<label class="${extra}">${l}<input data-k="${k}" inputmode="decimal" value="${esc(mn(p[k]))}"></label>`;
+        const pole_ = p.typ === "meridlo"
+          ? f("stav_od", "Stav od") + f("stav_do", "Stav do") + f("cena", "Cena / jedn. [Kč]") + f("jednotka", "Jednotka") + f("spotreba", "Spotřeba ručně") + f("naklad_rucne", "Částka ručně [Kč]")
+          : p.typ === "den" ? f("cena", "Sazba / den [Kč]") + f("dny", "Počet dní") + f("naklad_rucne", "Částka ručně [Kč]")
+          : f("castka", "Částka [Kč]");
+        return `<div class="pol" data-i="${i}">
+          <div class="pol-top">
+            <select data-k="typ" aria-label="Typ položky">${TYPY_POLOZEK.map(([k, t]) => `<option value="${k}" ${p.typ === k ? "selected" : ""}>${esc(t)}</option>`).join("")}</select>
+            <button type="button" class="icon-btn" data-smaz title="Odebrat položku">✕</button>
+          </div>
+          <label class="wide">Název<input data-k="nazev" value="${esc(p.nazev || "")}" placeholder="např. Teplá voda"></label>
+          <div class="pol-pole">${pole_}</div>
+          <div class="pol-sum"></div>
+        </div>`;
+      }).join("") || `<p class="muted">Žádné položky.</p>`;
+      prepocti();
+    };
+
+    const sebratPolozku = (p) => {
+      const o = { typ: p.typ, nazev: (p.nazev || "").trim() };
+      for (const k of ["stav_od", "stav_do", "spotreba", "cena", "dny", "castka", "naklad_rucne"]) if (k in p) o[k] = cisloMeke(p[k]);
+      if (p.typ === "meridlo") o.jednotka = (p.jednotka || "").trim();
+      return o;
+    };
+    const aktualni = () => ({
+      zaloha_mesic: cisloMeke($("#f-vy-zaloha_mesic").value), mesicu: cisloMeke($("#f-vy-mesicu").value),
+      zalohy_celkem: cisloMeke($("#f-vy-zalohy_celkem").value), polozky: st.polozky.map(sebratPolozku),
+    });
+    const prepocti = () => {
+      const v = aktualni(), r = V.vypocet(v);
+      $$(".pol", dlg).forEach((el, i) => {
+        const n = r.polozky[i];
+        el.querySelector(".pol-sum").innerHTML = `<b>${kc2(n.naklad)}</b>${n.typ === "meridlo" ? ` <span class="muted">spotřeba ${mn(V.spotreba(n))}</span>` : ""}`;
+      });
+      $("#vy-souhrn").innerHTML = `
+        <div><span>Náklady</span><b>${kc2(r.naklady)}</b></div>
+        ${r.odpocty ? `<div><span>Odečty</span><b>${kc2(r.odpocty)}</b></div>` : ""}
+        <div><span>Náklady celkem</span><b>${kc2(r.celkem)}</b></div>
+        <div><span>Zálohy</span><b>${kc2(r.zalohy)}</b></div>
+        <div class="vysl ${r.preplatek ? "pos" : r.nedoplatek ? "neg" : ""}"><span>${vysledekText(r)}</span><b>${kc2(Math.abs(r.rozdil))}</b></div>
+        ${r.maVyrovnani ? `<div><span>Kauce − srážky</span><b>${kc2(r.vyrovnani)}</b></div>
+        <div class="vysl ${r.kVraceni >= 0 ? "pos" : "neg"}"><span>${r.kVraceni >= 0 ? "Celkem k vrácení nájemci" : "Celkem doplatí nájemce"}</span><b>${kc2(Math.abs(r.kVraceni))}</b></div>` : ""}`;
+    };
+
+    $("#dlg-fields").innerHTML = `
+      <div class="fields vy-hlava">${hlavicka.map((p) => pole({ ...p, k: `vy-${p.k}`, wide: p.wide }, st[p.k])).join("")}</div>
+      <div class="vy-nastroje">
+        <button type="button" class="btn small" id="vy-doplnit">Doplnit zálohy ze smluv a dny z období</button>
+        <button type="button" class="btn small" id="vy-pridat">+ Položka</button>
+        <select id="vy-pridat-typ" aria-label="Typ nové položky">${TYPY_POLOZEK.map(([k, t]) => `<option value="${k}">${esc(t)}</option>`).join("")}</select>
+      </div>
+      <div id="vy-polozky" class="vy-polozky"></div>
+      <div id="vy-souhrn" class="vy-souhrn"></div>`;
+    vykresliPolozky();
+
+    const cti = (id) => $(`#${id}`).value.trim();
+    // pole s prefixem vy- (ať se neplete s polem v běžném formuláři); jména pro hodnotyFormulare
+    const hlavickaPole = hlavicka.map((p) => ({ ...p, k: `vy-${p.k}` }));
+    $("#vy-doplnit").onclick = () => {
+      try {
+        const od = cti("f-vy-od"), do_ = cti("f-vy-do");
+        if (!od || !do_) throw new Error("Vyplň období od–do.");
+        const z = V.zalohyPodleSmluv(pron, od, do_);
+        const dny = V.pocetDni(od, do_);
+        if (z.najemce) $("#f-vy-najemce").value = z.najemce;
+        $("#f-vy-zaloha_mesic").value = mn(z.zaloha_mesic);
+        $("#f-vy-mesicu").value = mn(z.mesicu || V.pocetMesicu(od, do_));
+        $("#f-vy-zalohy_celkem").value = z.promenliva ? mn(z.zalohy_celkem) : "";
+        st.polozky.forEach((p) => { if (p.typ === "den") p.dny = dny; });
+        vykresliPolozky();
+        toast(z.mesicu ? "Doplněno ze smluv" : "V tomto období není žádná smlouva – zálohy zadej ručně", !z.mesicu);
+      } catch (e) { err.textContent = e.message; err.hidden = false; }
+    };
+    $("#vy-pridat").onclick = () => { st.polozky.push({ ...NOVA_POLOZKA[$("#vy-pridat-typ").value] }); vykresliPolozky(); };
+    $("#vy-polozky").oninput = (e) => {
+      const el = e.target.closest("[data-k]");
+      if (!el || el.tagName === "SELECT") return;
+      st.polozky[+el.closest(".pol").dataset.i][el.dataset.k] = el.value;
+      prepocti();
+    };
+    $("#vy-polozky").onchange = (e) => {
+      const el = e.target.closest("select[data-k]");
+      if (!el) return;
+      const i = +el.closest(".pol").dataset.i, p = st.polozky[i];
+      st.polozky[i] = { ...NOVA_POLOZKA[el.value], nazev: p.nazev || NOVA_POLOZKA[el.value].nazev };
+      vykresliPolozky();
+    };
+    $("#vy-polozky").onclick = (e) => {
+      const b = e.target.closest("[data-smaz]");
+      if (!b) return;
+      st.polozky.splice(+b.closest(".pol").dataset.i, 1);
+      vykresliPolozky();
+    };
+    for (const id of ["f-vy-zaloha_mesic", "f-vy-mesicu", "f-vy-zalohy_celkem"]) $(`#${id}`).oninput = prepocti;
+
+    $("#dlg-cancel").onclick = () => dlg.close();
+    del.onclick = async () => {
+      if (!confirm("Opravdu smazat vyúčtování?")) return;
+      try { await provest(() => uloziste.smaz("vyuctovani", zaznam), "Smazáno"); dlg.close(); } catch (e) { err.textContent = e.message; err.hidden = false; }
+    };
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      err.hidden = true;
+      try {
+        const h = hodnotyFormulare(hlavickaPole, form);
+        const out = {};
+        for (const p of hlavicka) out[p.k] = h[`vy-${p.k}`];
+        if (out.od > out.do) throw new Error("Začátek období je po jeho konci.");
+        const polozky = st.polozky.map((p) => {
+          for (const k of ["stav_od", "stav_do", "spotreba", "cena", "dny", "castka", "naklad_rucne"]) if (k in p) cislo(p[k] ?? ""); // chyba = srozumitelná hláška
+          return sebratPolozku(p);
+        });
+        if (polozky.some((p) => !p.nazev)) throw new Error("Každá položka musí mít název.");
+        await provest(() => uloziste.uloz("vyuctovani", { ...out, byt_id: byt.id, polozky }, zaznam));
+        dlg.close();
+      } catch (e2) { err.textContent = e2.message; err.hidden = false; }
+    };
+    dlg.showModal();
   }
 
   // ============================================================== finance
