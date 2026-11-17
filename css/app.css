@@ -167,6 +167,8 @@ dialog {
 }
 dialog::backdrop { background: rgba(0,0,0,.4); }
 dialog form { padding: 20px; max-height: calc(100vh - 64px); overflow-y: auto; }
+/* na telefonech 100vh zahrnuje lištu prohlížeče a spodek formuláře by byl mimo obrazovku */
+@supports (height: 100dvh) { dialog form { max-height: calc(100dvh - 64px); } }
 dialog h2 { font: 600 1.3rem Fraunces, Georgia, serif; margin: 0 0 16px; }
 .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .fields .f { display: grid; gap: 4px; }

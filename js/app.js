@@ -1209,6 +1209,7 @@
     })();
 
     const hlavicka = [
+      { k: "odeslano", l: "Odesláno nájemníkovi", t: "date", wide: true, help: "Zadej skutečné datum odeslání. Prázdné = zatím neodesláno." },
       { k: "rok", l: "Rok", t: "int", req: true },
       { k: "od", l: "Období od", t: "date", req: true },
       { k: "do", l: "Období do", t: "date", req: true },
@@ -1216,7 +1217,6 @@
       { k: "zaloha_mesic", l: "Záloha / měsíc [Kč]", t: "num" },
       { k: "mesicu", l: "Měsíců záloh", t: "num" },
       { k: "zalohy_celkem", l: "Zálohy celkem [Kč]", t: "num", wide: true, help: "Vyplň jen když se záloha v roce měnila – přepíše záloha × měsíce" },
-      { k: "odeslano", l: "Odesláno nájemníkovi", t: "date" },
       { k: "poznamka", l: "Poznámka (zobrazí se na listině)", t: "area", wide: true },
     ];
 
