@@ -20,6 +20,31 @@
   const zaokr = (v) => (v === null || v === undefined || !isFinite(v) ? null : Math.round(v));
   const rozdil = (nova, stara) => (stara ? (nova - stara) / stara : null);
 
+  // ------------------------------------------------------------ kdy zapisovat čtvrtletní tržní data
+  // Cenovou mapu MF zveřejňuje ministerstvo nejpozději 45 dnů po konci čtvrtletí (vyhláška 456/2024 Sb.),
+  // tj. do 14.–15. 2., 5., 8. a 11. Termín zápisu je 20. – s malou rezervou. U Deloitte Rent Indexu
+  // neznáme pevné datum vydání, proto se řídíme stejným termínem.
+  const TERMINY_TRHU = [[2, 20], [5, 20], [8, 20], [11, 20]]; // [měsíc, den]
+  const REZERVA_ZAPISU = 14; // zápis do 14 dnů před termínem se ještě počítá za nynější kolo
+
+  function terminyTrhu(trhRadky, dnes) {
+    const t = F.d(dnes);
+    const y = t.getUTCFullYear();
+    const vse = [];
+    for (const yy of [y - 1, y, y + 1]) for (const [m, dd] of TERMINY_TRHU) vse.push(new Date(Date.UTC(yy, m - 1, dd)));
+    vse.sort((a, b) => a - b);
+    const posledni = vse.filter((x) => x <= t).pop();
+    const dalsi = vse.find((x) => x > t);
+    const datumy = (trhRadky || []).map((r) => String(r.datum).slice(0, 10)).sort();
+    const poslZapis = datumy.length ? datumy[datumy.length - 1] : null;
+    const splatne = !poslZapis || F.d(poslZapis) < new Date(posledni.getTime() - REZERVA_ZAPISU * DEN);
+    return {
+      posledni: F.iso(posledni), dalsi: F.iso(dalsi), poslZapis, splatne,
+      dniDoDalsiho: Math.round((dalsi - t) / DEN),
+      dniOdTerminu: Math.round((t - posledni) / DEN),
+    };
+  }
+
   // ------------------------------------------------------------ inflace nájmů (ČSÚ)
   // cpi = obsah indexy/najemne-cpi.json: { stazeno, posledni_mesic, mesice: [{ m: "2026-10", idx: 106.4 }] }
   function posledniIndex(cpi) {
@@ -106,7 +131,7 @@
     return a.sort((x, y) => klic(x) - klic(y));
   }
 
-  const Najem = { ZDROJE, DNI_PRED_KONCEM, DNI_STARE_TRHU, posledniIndex, stavCpi, aktualniNajem, poslednTrh, posledniNavrh, podklad, poradiPodleKonce };
+  const Najem = { ZDROJE, DNI_PRED_KONCEM, DNI_STARE_TRHU, posledniIndex, stavCpi, terminyTrhu, TERMINY_TRHU, aktualniNajem, poslednTrh, posledniNavrh, podklad, poradiPodleKonce };
   root.Najem = Najem;
   if (typeof module !== "undefined") module.exports = Najem;
 })(typeof window !== "undefined" ? window : globalThis);

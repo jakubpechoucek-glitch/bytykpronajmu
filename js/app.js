@@ -798,14 +798,13 @@
     } else {
       out.push([sc.ok ? "info" : "varovani", `Inflace nájmů (ČSÚ): <b>${F.fmtPct(idx.koef - 1, 1)}</b> meziročně za ${F.fmtMesic(idx.mesic + "-01")} · ${esc(sc.text)}`]);
     }
-    const trh = (data.najem_trh || []).map((r) => String(r.datum).slice(0, 10)).sort();
-    const posl = trh[trh.length - 1];
-    if (!posl) {
-      out.push(["varovani", "Zatím nejsou zapsaná žádná tržní data (Deloitte, Ministerstvo financí). Zapiš je tlačítkem „Zapsat čtvrtletní data“."]);
+    const tt = N.terminyTrhu(data.najem_trh, den);
+    const dni = (n) => `${n} ${n === 1 ? "den" : n < 5 ? "dny" : "dní"}`;
+    const naposled = tt.poslZapis ? `naposledy zapsána ${F.fmtDatum(tt.poslZapis)}` : "zatím nezapsána";
+    if (tt.splatne) {
+      out.push(["varovani", `<b>Čtvrtletní tržní data (Deloitte, MF) je čas zapsat</b> – termín byl ${F.fmtDatum(tt.posledni)}, ${naposled}. Zapiš je tlačítkem „Zapsat čtvrtletní data“.`]);
     } else {
-      const stari = Math.round((F.d(den) - F.d(posl)) / 864e5);
-      out.push([stari > N.DNI_STARE_TRHU ? "varovani" : "info",
-        `Tržní data (Deloitte, MF): naposledy zapsána ${F.fmtDatum(posl)}${stari > N.DNI_STARE_TRHU ? ` – před ${stari} dny, je čas zapsat nová čtvrtletní čísla` : ""}`]);
+      out.push(["info", `Čtvrtletní tržní data (Deloitte, MF): ${naposled} · další zápis do <b>${F.fmtDatum(tt.dalsi)}</b> (za ${dni(tt.dniDoDalsiho)}). Ministerstvo financí cenovou mapu zveřejňuje do 45 dnů po konci čtvrtletí.`]);
     }
     return `<section class="card"><h2>Zdroje dat</h2><ul class="alerts">${out.map(([u, t]) => `<li class="${u}"><span>${t}</span></li>`).join("")}</ul></section>`;
   }
@@ -947,7 +946,7 @@
     const polea = [{
       k: "datum", l: "Údaje platí k", t: "date", req: true, def: dnes(), wide: true,
       help: `Otevři <a href="${ODKAZ_DELOITTE}" target="_blank" rel="noopener">Deloitte Rent Index</a> (nejnovější zpráva, nájem v Kč/m² podle městské části) a
-        <a href="${ODKAZ_MF}" target="_blank" rel="noopener">kalkulačku MF</a> (adresa a parametry bytu). Co nevyplníš, zůstane beze změny.`,
+        <a href="${ODKAZ_MF}" target="_blank" rel="noopener">kalkulačku MF</a> (adresa a parametry bytu). Co nevyplníš, zůstane beze změny. Zapisuje se jednou za čtvrtletí, do 20. února, května, srpna a listopadu.`,
     }];
     for (const b of byty) {
       polea.push({ k: `h_${b.id}`, l: `${esc(b.nazev)} · ${naVstup(Number(b.plocha_m2))} m²`, t: "nadpis" });

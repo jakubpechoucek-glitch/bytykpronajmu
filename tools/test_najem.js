@@ -93,4 +93,24 @@ if (fs.existsSync(f)) {
   assert.ok(N.posledniIndex(j).idx > 90 && N.posledniIndex(j).idx < 160);
 }
 
+// termíny čtvrtletních dat: 20. 2., 5., 8., 11.
+const tr = (datum) => (datum ? [{ byt_id: "a", datum, zdroj: "mf", kc_m2: 400 }] : []);
+let tt = N.terminyTrhu(tr("2026-10-01"), "2026-11-17");
+assert.strictEqual(tt.posledni, "2026-08-20");
+assert.strictEqual(tt.dalsi, "2026-11-20");
+assert.strictEqual(tt.dniDoDalsiho, 3);
+assert.strictEqual(tt.splatne, false); // zapsáno 1. 10., termín 20. 8. je už pokrytý
+tt = N.terminyTrhu(tr("2026-10-01"), "2026-11-21"); // termín 20. 11. nastal, zápis z 1. 10. je starý
+assert.strictEqual(tt.posledni, "2026-11-20");
+assert.strictEqual(tt.splatne, true);
+tt = N.terminyTrhu(tr("2026-11-10"), "2026-11-21"); // zápis krátce před termínem se počítá
+assert.strictEqual(tt.splatne, false);
+tt = N.terminyTrhu(tr("2026-11-01"), "2026-11-21"); // víc než 14 dní před termínem už ne
+assert.strictEqual(tt.splatne, true);
+assert.strictEqual(N.terminyTrhu([], "2026-11-17").splatne, true);
+tt = N.terminyTrhu(tr("2026-11-25"), "2027-01-05"); // přechod roku
+assert.strictEqual(tt.posledni, "2026-11-20");
+assert.strictEqual(tt.dalsi, "2027-02-20");
+assert.strictEqual(tt.splatne, false);
+
 console.log("test_najem: OK");
