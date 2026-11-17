@@ -42,6 +42,8 @@ termín nastal a poslední zápis je starší (nebo žádný), zobrazí varován
 před termínem se ještě počítá za nynější kolo. V Google Kalendáři je opakovaná událost
 na 20. 2., 5., 8. a 11.
 
+Termíny a inflační doložka (zvýšení nájmu po prvním roce) viz [11](11-inflacni-dolozka.md).
+
 ## Stahování z ČSÚ
 
 - Skript `tools/stahni_inflaci_najmu.py` (jen standardní Python) vytvoří

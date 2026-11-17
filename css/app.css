@@ -291,3 +291,10 @@ dialog.siroky { width: min(760px, calc(100vw - 32px)); }
 }
 dialog.siroky #dlg-fields { display: block; }
 .listina-h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); margin: 24px 0 6px; }
+.dolozka { margin: 14px 0 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--soft); display: grid; gap: 4px; font-size: 0.9rem; }
+.dolozka .note { margin: 4px 0 0; }
+.terminy tr.po-terminu td { background: color-mix(in srgb, var(--err) 8%, transparent); }
+.terminy tr.blizko td { background: color-mix(in srgb, var(--warn) 9%, transparent); }
+.nowrap { white-space: nowrap; }
+.terminy .radek-info { font-size: 0.78rem; margin-top: 2px; }
+.terminy td { vertical-align: top; }

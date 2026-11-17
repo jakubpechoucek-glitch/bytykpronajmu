@@ -42,6 +42,7 @@ k jednorázovému importu, dál se vše eviduje a upravuje přímo na webu.
 | [docs/07-otevrene-otazky.md](docs/07-otevrene-otazky.md) | Rozhodnutí a otevřené otázky |
 | [docs/08-nastaveni-supabase.md](docs/08-nastaveni-supabase.md) | Jednorázové nastavení databáze a přihlášení |
 | [docs/10-novy-najem.md](docs/10-novy-najem.md) | Podklad pro nový nájem: inflace z ČSÚ, tržní data, návrh a schválení |
+| [docs/11-inflacni-dolozka.md](docs/11-inflacni-dolozka.md) | Inflační doložka u 2letých smluv, hlídání termínů, stránka Termíny |
 | [docs/09-vyuctovani.md](docs/09-vyuctovani.md) | Vyúčtování záloh nájemníkovi, zálohy a kauce |
 
 ## Struktura
@@ -94,3 +95,4 @@ nepatří osobní údaje nájemníků ani vygenerovaný `import.sql` (`data/`,
 - [ ] Sloučit do `main` a ověřit první běh Actions „Index nájmů z ČSÚ“
 - [x] Zálohy u smluv a vyúčtování záloh s tiskem (docs/09) – po nasazení spustit nový `supabase/schema.sql`
 - [ ] Projít po jednom Kbely, Chabry 2, Brandýs a převést starší vyúčtování z Excelů
+- [x] Inflační doložka u 2letých smluv, stránka Termíny, čtvrtletní data (docs/11) – po nasazení ověřit na ostrých datech

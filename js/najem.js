@@ -63,6 +63,49 @@
     return { ok: true, text: `ČSÚ, stažena ${F.fmtDatum(cpi.stazeno)}` };
   }
 
+  // Obecná (celková) inflace – o té mluví doložka ve smlouvách („inflace vyhlášená ČSÚ nebo ČNB“)
+  function posledniObecna(cpi) {
+    if (!cpi || !cpi.obecna || !cpi.obecna.length) return null;
+    const p = cpi.obecna[cpi.obecna.length - 1];
+    return { mesic: p.m, idx: p.idx, koef: p.idx / 100 };
+  }
+
+  // ------------------------------------------------------------ inflační doložka (zvýšení po prvním roce)
+  // Doložka (čl. 4.5): nájem je pevný první rok; po každém dalším roce může pronajímatel
+  // zvýšit nájem o inflaci. Změna se dělá číselným dodatkem podepsaným oběma stranami.
+  // Smlouva lhůtu pro oznámení nezná – níže jsou vnitřní pravidla aplikace:
+  const MESICE_ZACIT = 3;   // tolik měsíců před datem zvýšení se začne řešit
+  const MESICE_ODESLAT = 2; // tolik měsíců před datem zvýšení má být oznámení / dodatek odeslán
+
+  function pridejMesice(dt, m) {
+    const y = dt.getUTCFullYear(), mo = dt.getUTCMonth() + m;
+    const posledniDen = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate();
+    return new Date(Date.UTC(y, mo, Math.min(dt.getUTCDate(), posledniDen)));
+  }
+
+  function dolozka(byt, data, cpi, dnes) {
+    const t = F.d(dnes);
+    const p = F.pronajmyBytu(byt, data.pronajmy).find((x) => x.inflacni_dolozka && (!x.do || F.d(x.do) >= t));
+    if (!p) return null;
+    // první možné zvýšení: zadané datum, jinak první výročí začátku smlouvy
+    const datum = p.zvyseni_od ? F.d(p.zvyseni_od) : pridejMesice(F.d(p.od), 12);
+    if (p.do && datum > F.d(p.do)) return null; // do konce smlouvy už zvýšení nenastane
+    const iso = F.iso(datum);
+    const najem = F.num(p.najem_mesic);
+    const zacit = pridejMesice(datum, -MESICE_ZACIT), odeslat = pridejMesice(datum, -MESICE_ODESLAT);
+    // vyřešeno = je schválený / odeslaný návrh k tomuto datu, nebo už platí dodatek od tohoto data
+    const navrh = (data.najem_navrhy || []).some((n) => n.byt_id === byt.id && String(n.plati_od).slice(0, 10) === iso && (n.stav === "schvaleno" || n.stav === "odeslano"));
+    const dodatek = F.pronajmyBytu(byt, data.pronajmy).some((x) => String(x.od).slice(0, 10) === iso);
+    const vyreseno = navrh || dodatek;
+    const poTerminu = !vyreseno && t > odeslat;
+    const kReseni = !vyreseno && t >= zacit;
+    return {
+      najemce: p.najemce, najem, datum: iso, zacit: F.iso(zacit), odeslat: F.iso(odeslat),
+      dniDoDatumu: Math.round((datum - t) / DEN), dniDoOdeslani: Math.round((odeslat - t) / DEN),
+      vyreseno, poTerminu, kReseni, uzJe: datum <= t,
+    };
+  }
+
   // ------------------------------------------------------------ smlouva a nájem
   // Aktuální nájem = běžící smlouva; není-li, tak poslední
   function aktualniNajem(byt, pronajmy, dnes) {
@@ -115,11 +158,17 @@
       const stari = Math.round((t - F.d(r.datum)) / DEN);
       varianty.push({ id: r.id, klic: zdroj, nazev: `${ZDROJE[zdroj] || zdroj}${r.poznamka ? ` (${r.poznamka})` : ""}`, castka: zaokr(c), kcM2: kc, rozdil: akt ? rozdil(c, akt.najem) : null, datum: r.datum, stare: stari > DNI_STARE_TRHU, stariDni: stari });
     }
+    const dol = dolozka(byt, data, cpi, dnes);
+    const obecna = posledniObecna(cpi);
+    if (dol && akt && akt.najem && obecna) {
+      const c = akt.najem * obecna.koef;
+      varianty.push({ klic: "obecna", nazev: `Obecná inflace (ČSÚ, ${(obecna.idx - 100).toFixed(1).replace(".", ",")} % za ${F.fmtMesic(obecna.mesic + "-01")}) – tak zní doložka`, castka: zaokr(c), kcM2: plocha ? c / plocha : null, rozdil: rozdil(c, akt.najem) });
+    }
     const navrh = posledniNavrh(data.najem_navrhy || [], byt.id);
     const konci = akt && akt.dnuDoKonce !== null && akt.dnuDoKonce <= DNI_PRED_KONCEM;
     // návrh je schválený / odeslaný a ještě nezačal platit → není co řešit, jen čekat na podpis
     const vyreseno = !!navrh && (navrh.stav === "schvaleno" || navrh.stav === "odeslano") && F.d(navrh.plati_od) > t;
-    return { byt, akt, idx, varianty, navrh, vyreseno, kReseni: !!konci && !vyreseno,
+    return { byt, akt, idx, varianty, navrh, vyreseno, dolozka: dol, kReseni: (!!konci && !vyreseno) || !!(dol && dol.kReseni),
       navrhRozdil: navrh && akt ? rozdil(F.num(navrh.navrh), akt.najem) : null,
       navrhKcM2: navrh && plocha ? F.num(navrh.navrh) / plocha : null };
   }
@@ -131,7 +180,48 @@
     return a.sort((x, y) => klic(x) - klic(y));
   }
 
-  const Najem = { ZDROJE, DNI_PRED_KONCEM, DNI_STARE_TRHU, posledniIndex, stavCpi, terminyTrhu, TERMINY_TRHU, aktualniNajem, poslednTrh, posledniNavrh, podklad, poradiPodleKonce };
+  // Upozornění na zvýšení podle doložky (pro Přehled a detail bytu)
+  function upozorneniDolozky(data, cpi, dnes) {
+    const out = [];
+    for (const b of data.byty) {
+      const d = dolozka(b, data, cpi, dnes);
+      if (!d || !d.kReseni) continue;
+      const kdy = d.uzJe ? `už lze zvýšit od ${F.fmtDatum(d.datum)}` : `lze zvýšit od ${F.fmtDatum(d.datum)}`;
+      out.push({ byt: b, uroven: d.poTerminu ? "chyba" : "varovani", typ: "dolozka",
+        text: `Inflační doložka: nájem ${kdy}${d.poTerminu ? `, termín pro odeslání (${F.fmtDatum(d.odeslat)}) už uplynul` : `, odeslat do ${F.fmtDatum(d.odeslat)}`}` });
+    }
+    return out;
+  }
+
+  // Všechny hlídané termíny na jedné ose (stránka Termíny)
+  function terminy(data, cpi, dnes) {
+    const t = F.d(dnes);
+    const out = [];
+    const add = (datum, byt, typ, text, extra = {}) => out.push({ datum: F.iso(F.d(datum)), byt, typ, text,
+      dni: Math.round((F.d(datum) - t) / DEN), ...extra });
+    for (const b of data.byty) {
+      const akt = aktualniNajem(b, data.pronajmy, dnes);
+      if (akt && akt.do && akt.beziSmlouva) add(akt.do, b, "konec", "Končí nájemní smlouva", { odkaz: `#/najem/${encodeURIComponent(b.id)}` });
+      const d = dolozka(b, data, cpi, dnes);
+      if (d) {
+        const o = `#/najem/${encodeURIComponent(b.id)}`;
+        add(d.zacit, b, "dolozka-zacit", "Začít řešit zvýšení podle inflační doložky", { odkaz: o, vyreseno: d.vyreseno });
+        add(d.odeslat, b, "dolozka-odeslat", "Odeslat oznámení / dodatek o zvýšení nájmu", { odkaz: o, vyreseno: d.vyreseno });
+        add(d.datum, b, "dolozka", "Zvýšení nájmu podle inflační doložky lze uplatnit od", { odkaz: o, vyreseno: d.vyreseno });
+      }
+      for (const h of data.hypoteky.filter((x) => x.byt_id === b.id && !x.splacena && x.konec_fixace)) {
+        add(h.konec_fixace, b, "fixace", "Končí fixace hypotéky");
+      }
+    }
+    const tt = terminyTrhu(data.najem_trh, dnes);
+    add(tt.splatne ? tt.posledni : tt.dalsi, null, "trh", "Zapsat čtvrtletní tržní data (Deloitte, MF)", { odkaz: "#/najem", vyreseno: false });
+    // zobrazit: budoucí do 18 měsíců a nevyřešené zmeškané za posledních 60 dní;
+    // nezapsaná čtvrtletní data zůstávají na seznamu, dokud se nezapíšou
+    const hranice = new Date(t.getTime() + 548 * DEN);
+    return out.filter((x) => !x.vyreseno && F.d(x.datum) <= hranice && (x.dni >= -60 || x.typ === "trh")).sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : 0));
+  }
+
+  const Najem = { ZDROJE, DNI_PRED_KONCEM, DNI_STARE_TRHU, posledniIndex, posledniObecna, dolozka, upozorneniDolozky, terminy, stavCpi, terminyTrhu, TERMINY_TRHU, aktualniNajem, poslednTrh, posledniNavrh, podklad, poradiPodleKonce };
   root.Najem = Najem;
   if (typeof module !== "undefined") module.exports = Najem;
 })(typeof window !== "undefined" ? window : globalThis);

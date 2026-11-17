@@ -90,6 +90,8 @@
       vykresliFinance(main);
     } else if (cesta === "najem") {
       vykresliNajem(main, param);
+    } else if (cesta === "terminy") {
+      vykresliTerminy(main);
     } else {
       vykresliPrehled(main);
     }
@@ -99,7 +101,7 @@
   function vykresliNav(aktivni) {
     const kReseni = N.poradiPodleKonce(data, cpi, dnes()).filter((p) => p.kReseni).length;
     const odkazy = [["prehled", "#/", "Přehled"], ...serazeneByty().map((b) => [b.id, `#/byt/${encodeURIComponent(b.id)}`, b.nazev]),
-      ["najem", "#/najem", kReseni ? `Nový nájem (${kReseni})` : "Nový nájem"], ["finance", "#/finance", "Finance"]];
+      ["najem", "#/najem", kReseni ? `Nový nájem (${kReseni})` : "Nový nájem"], ["terminy", "#/terminy", "Termíny"], ["finance", "#/finance", "Finance"]];
     $("#nav").innerHTML = odkazy.map(([id, href, txt]) => `<a href="${href}" class="${id === aktivni ? "on" : ""}">${esc(txt)}</a>`).join("");
     const on = $("#nav .on");
     if (on) on.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -183,7 +185,7 @@
   const kpi = (l, v, s = "", cls = "", k = null) => `<div class="kpi ${cls}"><div class="l">${l}${k ? napoveda(k) : ""}</div><div class="v">${v}</div>${s ? `<div class="s">${s}</div>` : ""}</div>`;
   const znamenko = (v, txt) => (v === null || v === undefined ? txt : `<span class="${v >= 0 ? "pos" : "neg"}">${v > 0 ? "+" : ""}${txt}</span>`);
   const pct = (v, des) => F.fmtPct(v, des);
-  const odkazPodkladu = (u) => (u.typ === "konec-smlouvy" ? ` · <a href="#/najem/${encodeURIComponent(u.byt.id)}">podklad pro nový nájem →</a>` : "");
+  const odkazPodkladu = (u) => (u.typ === "konec-smlouvy" || u.typ === "dolozka" ? ` · <a href="#/najem/${encodeURIComponent(u.byt.id)}">podklad pro nový nájem →</a>` : "");
 
   function stavPronajmu(p) {
     const t = F.d(dnes());
@@ -249,6 +251,8 @@
       { k: "kontakt", l: "Kontakt (e-mail, telefon)", t: "text" },
       { k: "od", l: "Od", t: "date", req: true },
       { k: "do", l: "Do", t: "date", help: "Prázdné = doba neurčitá" },
+      { k: "inflacni_dolozka", l: "Smlouva má inflační doložku (zvýšení nájmu po prvním roce)", t: "bool", wide: true },
+      { k: "zvyseni_od", l: "Zvýšení lze uplatnit od", t: "date", help: "Prázdné = první výročí začátku smlouvy. U smluv začínajících uprostřed roku ověř ve smlouvě." },
       { k: "najem_mesic", l: "Nájem / měsíc [Kč]", t: "num" },
       { k: "kauce", l: "Kauce [Kč]", t: "num" },
       { k: "zaloha_mesic", l: "Záloha na služby / měsíc [Kč]", t: "num", help: "Měsíční záloha na vodu, teplo a poplatky SVJ – podle ní se počítá vyúčtování" },
@@ -399,7 +403,7 @@
       return;
     }
     const p = F.portfolio(data, den);
-    const upoz = F.upozorneni(data, den);
+    const upoz = F.upozorneni(data, den).concat(N.upozorneniDolozky(data, cpi, den));
     const indexy = Object.fromEntries(serazeneByty().map((b, i) => [b.id, i]));
 
     main.innerHTML = `
@@ -486,7 +490,7 @@
     const pron = F.pronajmyBytu(byt, data.pronajmy);
     const odhady = data.odhady.filter((o) => o.byt_id === byt.id).sort((a, b) => (a.datum < b.datum ? 1 : -1));
     const hyp = s.hypoteky;
-    const upoz = F.upozorneni({ ...data, byty: [byt] }, den);
+    const upoz = F.upozorneni({ ...data, byty: [byt] }, den).concat(N.upozorneniDolozky({ ...data, byty: [byt] }, cpi, den));
     const pasmo = F.pasmo(s.irr);
     const maOdkazy = byt.odkaz_mapa || byt.odkaz_fotogalerie || byt.odkaz_smlouvy;
     const radekInfo = (l, v) => (v === null || v === undefined || v === "" ? "" : `<dt>${l}</dt><dd>${v}</dd>`);
@@ -812,6 +816,24 @@
   // Odeslaný návrh, jehož datum už nastalo, je historie – nový nájem začíná novým návrhem
   const jeVyrizeny = (n, den) => !!n && n.stav === "odeslano" && F.d(n.plati_od) <= F.d(den);
 
+  // Inflační doložka: kdy lze nájem zvýšit a do kdy to odeslat
+  function blokDolozky(p) {
+    const d = p.dolozka;
+    if (!d) return "";
+    const stav = d.vyreseno ? `<span class="badge ok">vyřešeno</span>`
+      : d.poTerminu ? `<span class="badge err">termín odeslání uplynul</span>`
+      : d.kReseni ? `<span class="badge warn">k řešení</span>` : `<span class="badge mut">zatím nehlídá</span>`;
+    const kdy = d.uzJe ? "už lze" : `lze za ${d.dniDoDatumu} ${d.dniDoDatumu === 1 ? "den" : d.dniDoDatumu < 5 ? "dny" : "dní"}`;
+    const idx = N.posledniIndex(cpi), obe = N.posledniObecna(cpi);
+    const rozdilIdx = idx && obe && idx.koef - obe.koef > 0.01;
+    return `<div class="dolozka">
+      <div><b>Inflační doložka</b> ${stav}</div>
+      <div>Nájem ${kdy} zvýšit <b>od ${F.fmtDatum(d.datum)}</b>. Začít řešit od ${F.fmtDatum(d.zacit)}, oznámení / dodatek odeslat do <b>${F.fmtDatum(d.odeslat)}</b>.</div>
+      <p class="note">Změna se dělá dodatkem podepsaným oběma stranami. Smlouva lhůtu pro oznámení neurčuje, termíny jsou vnitřní pravidlo aplikace (${3} a ${2} měsíce předem).
+      ${rozdilIdx ? `Doložka mluví o <b>inflaci vyhlášené ČSÚ nebo ČNB</b>, tedy o obecné inflaci (${F.fmtPct(obe.koef - 1, 1)}), ne o inflaci nájmů (${F.fmtPct(idx.koef - 1, 1)}). Zvýšení podle nájmů vychází výš – zvaž, zda to znění doložky unese.` : ""}</p>
+    </div>`;
+  }
+
   function kartaNajmu(p, den) {
     const { byt, akt } = p;
     const n = jeVyrizeny(p.navrh, den) ? null : p.navrh;
@@ -861,6 +883,7 @@
         ${p.varianty.some((v) => v.klic !== "inflace") ? "" : `<p class="note">Zatím chybí tržní údaje pro tento byt – zapiš je tlačítkem „Zapsat čtvrtletní data“ nahoře.</p>`}
         ${!m2 ? `<p class="note err-text">U bytu chybí plocha, tržní varianty se bez ní nespočítají.</p>` : ""}`
         : `<p class="muted">${akt ? "Ve smlouvě chybí výše nájmu." : "U bytu není žádná smlouva, podklad nejde spočítat."}</p>`}
+      ${blokDolozky(p)}
       ${n && n.poznamka ? `<p class="navrh-poznamka">${esc(n.poznamka)}</p>` : ""}
       ${razitka ? `<p class="note">${razitka}</p>` : ""}
       ${historie}
@@ -896,6 +919,27 @@
       const byt = data.byty.find((x) => x.id === r.byt_id);
       upravitZaznam("najem_trh", "trh", `Tržní údaj: ${byt.nazev}`, byt, r);
     }));
+  }
+
+  // Všechny hlídané termíny na jedné ose
+  function vykresliTerminy(main) {
+    const den = dnes();
+    const tm = N.terminy(data, cpi, den);
+    const ZNACKA = { konec: "mut", "dolozka-zacit": "mut", "dolozka-odeslat": "warn", dolozka: "mut", fixace: "mut", trh: "mut" };
+    const kdy = (x) => (x.dni < 0 ? `před ${-x.dni} dny` : x.dni === 0 ? "dnes" : `za ${x.dni} ${x.dni === 1 ? "den" : x.dni < 5 ? "dny" : "dní"}`);
+    main.innerHTML = `
+      <div class="page-head"><div><h1>Termíny</h1>
+        <p class="sub">Konec smluv, zvýšení nájmu podle inflační doložky, konec fixace hypotéky a čtvrtletní tržní data. Vyřešené termíny se skrývají.</p></div></div>
+      <section class="card">
+        ${tm.length ? `<div class="scroll"><table class="tbl terminy">
+          <thead><tr><th>Kdy</th><th>Byt</th><th>Co</th></tr></thead>
+          <tbody>${tm.map((x) => `<tr class="${x.dni < 0 ? "po-terminu" : x.dni <= 30 ? "blizko" : ""}">
+            <td class="nowrap"><b>${F.fmtDatum(x.datum)}</b><div class="radek-info ${x.dni < 0 ? "neg" : "muted"}">${kdy(x)}</div></td>
+            <td>${x.byt ? `<a href="#/byt/${encodeURIComponent(x.byt.id)}">${esc(x.byt.nazev)}</a>` : `<span class="muted">všechny</span>`}</td>
+            <td>${esc(x.text)}${x.odkaz ? `<div class="radek-info"><a href="${x.odkaz}">${x.typ === "trh" ? "Zapsat data →" : "Podklad →"}</a></div>` : ""}</td></tr>`).join("")}</tbody>
+        </table></div>` : `<p class="muted">Žádné blížící se termíny.</p>`}
+        <p class="note">Doložka z čl. 4.5 nájemních smluv: nájem je pevný první rok, po každém dalším roce lze zvýšit o inflaci. Termíny „začít řešit“ (3 měsíce předem) a „odeslat“ (2 měsíce předem) jsou vnitřní pravidlo aplikace.</p>
+      </section>`;
   }
 
   // Kdo a kdy naposledy měnil návrh, kdo ho schválil
