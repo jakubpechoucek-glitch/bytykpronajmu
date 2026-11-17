@@ -29,13 +29,32 @@ Odkaz na soubor obsahuje při každém vydání nové ID, skript by ho musel naj
 **Čtvrtletní řady nemají Středočeský kraj** (jen Praha / ČR bez Prahy / ČR); kraje jsou jen
 v roční publikaci.
 
+### ČSÚ DataStat (API a otevřená data) – stabilní adresa
+
+Dokumentace: `csu.gov.cz/zakladni-informace-pro-pouziti-api-datastatu`. Katalog všech datových sad
+je na `https://data.csu.gov.cz/api/katalog/v1/sady` (JSON, ~1 000 sad); celou sadu lze stáhnout jako
+CSV na stálé adrese `https://data.csu.gov.cz/opendata/sady/<KÓD>/distribuce/csv` (stejně jako sada
+s inflací, kterou už aplikace používá, bez hledání ID souborů).
+
+| Sada | Obsah | Území | Ověřeno |
+|---|---|---|---|
+| **CEN0401** Indexy cen nemovitostí – data ČÚZK (od 2015) | indexy cen **bytů** a rodinných domů, čtvrtletně (základ 2010 i 2015, meziroční) | ČR a **všechny kraje včetně Prahy a Středočeského kraje** | data končí **4Q 2025** (sada se zřejmě aktualizuje jednou ročně, v létě) |
+| **CEN0402** Průměrné kupní ceny nemovitostí (od 2019) | **průměrná cena Kč/m²** bytů | ČR, kraje, **okresy**, velikost obce | roční, poslední rok 2025 |
+
+CEN0401 je tedy pro automatizaci nejlepší základ (stabilní adresa, kraje), ale **nejnovější čtvrtletí
+(1Q a 2Q 2026) jsou zatím jen v XLSX** výše (Praha / ČR bez Prahy). CEN0402 dává úroveň cen podle
+okresu a velikosti obce; jsou to průměry všech bytů, takže nové byty bývají výrazně nad nimi
+(vhodné jen jako kontrola věrohodnosti, ne jako odhad konkrétního bytu).
+
 ## Možnost 1 – automatický odhad z indexu (návrh, zatím nepostaveno)
 
 `odhad(měsíc) = poslední kotva (Kč/m²) × index(měsíc) / index(měsíc kotvy)`
 
 - **Kotva** = poslední zadaný odhad bytu (ručně z Atlasu cen, viz možnost 2).
-- Index je čtvrtletní → pro měsíc se bere lineárně mezi čtvrtletími; po posledním známém
-  čtvrtletí se drží poslední hodnota (označit „poslední známé“).
+- Index je čtvrtletní → pro měsíc se bere lineárně mezi čtvrtletími.
+- **Navržené napojení řad:** základ z DataStatu (CEN0401, kraj bytu); čtvrtletí, která v něm ještě
+  chybějí, se doplní růstem z XLSX (Praha starší / nové, ČR bez Prahy pro středočeské byty).
+  Po posledním známém čtvrtletí se drží poslední hodnota a odhad se označí „poslední známé“.
 - Každý byt má vybranou řadu: Praha starší / Praha nové / ČR bez Prahy (Praha-východ a podobně).
 - Výsledek se zapisuje do `odhady` se zdrojem „Automatický odhad (index ČSÚ)“, aby se
   odlišil od ruční kotvy. GitHub Actions měsíčně, jako u indexu nájmů.
