@@ -824,13 +824,10 @@
       : d.poTerminu ? `<span class="badge err">termín odeslání uplynul</span>`
       : d.kReseni ? `<span class="badge warn">k řešení</span>` : `<span class="badge mut">zatím nehlídá</span>`;
     const kdy = d.uzJe ? "už lze" : `lze za ${d.dniDoDatumu} ${d.dniDoDatumu === 1 ? "den" : d.dniDoDatumu < 5 ? "dny" : "dní"}`;
-    const idx = N.posledniIndex(cpi), obe = N.posledniObecna(cpi);
-    const rozdilIdx = idx && obe && idx.koef - obe.koef > 0.01;
     return `<div class="dolozka">
       <div><b>Inflační doložka</b> ${stav}</div>
-      <div>Nájem ${kdy} zvýšit <b>od ${F.fmtDatum(d.datum)}</b>. Začít řešit od ${F.fmtDatum(d.zacit)}, oznámení / dodatek odeslat do <b>${F.fmtDatum(d.odeslat)}</b>.</div>
-      <p class="note">Změna se dělá dodatkem podepsaným oběma stranami. Smlouva lhůtu pro oznámení neurčuje, termíny jsou vnitřní pravidlo aplikace (${3} a ${2} měsíce předem).
-      ${rozdilIdx ? `Doložka mluví o <b>inflaci vyhlášené ČSÚ nebo ČNB</b>, tedy o obecné inflaci (${F.fmtPct(obe.koef - 1, 1)}), ne o inflaci nájmů (${F.fmtPct(idx.koef - 1, 1)}). Zvýšení podle nájmů vychází výš – zvaž, zda to znění doložky unese.` : ""}</p>
+      <div>Nájem ${kdy} zvýšit <b>od ${F.fmtDatum(d.datum)}</b> o inflaci nájmů. Začít řešit od ${F.fmtDatum(d.zacit)}, oznámení / dodatek odeslat do <b>${F.fmtDatum(d.odeslat)}</b>.</div>
+      <p class="note">Změna se dělá dodatkem podepsaným oběma stranami. Smlouva lhůtu pro oznámení neurčuje, termíny (${N.DNI_ZACIT} a ${N.DNI_ODESLAT} dní předem) jsou vnitřní pravidlo aplikace. Částka podle inflace nájmů je v tabulce výše.</p>
     </div>`;
   }
 
@@ -938,7 +935,7 @@
             <td>${x.byt ? `<a href="#/byt/${encodeURIComponent(x.byt.id)}">${esc(x.byt.nazev)}</a>` : `<span class="muted">všechny</span>`}</td>
             <td>${esc(x.text)}${x.odkaz ? `<div class="radek-info"><a href="${x.odkaz}">${x.typ === "trh" ? "Zapsat data →" : "Podklad →"}</a></div>` : ""}</td></tr>`).join("")}</tbody>
         </table></div>` : `<p class="muted">Žádné blížící se termíny.</p>`}
-        <p class="note">Doložka z čl. 4.5 nájemních smluv: nájem je pevný první rok, po každém dalším roce lze zvýšit o inflaci. Termíny „začít řešit“ (3 měsíce předem) a „odeslat“ (2 měsíce předem) jsou vnitřní pravidlo aplikace.</p>
+        <p class="note">Doložka z čl. 4.5 nájemních smluv: nájem je pevný první rok, po každém dalším roce lze zvýšit o inflaci. Termíny „začít řešit“ (60 dní předem) a „odeslat“ (30 dní předem) jsou vnitřní pravidlo aplikace.</p>
       </section>`;
   }
 

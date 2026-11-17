@@ -44,7 +44,7 @@
       { id: 14, byt_id: "vinohrady", najemce: "Nájemce D", od: "2025-03-01", do: "2026-12-31", najem_mesic: 24500, kauce: 47000, zaloha_mesic: 3800, splatnost_den: 25, kontakt: "najemce.d@example.com", typ: "dodatek", poznamka: "Dodatek – prodloužení a změna nájemného." },
       { id: 5, byt_id: "holesovice", najemce: "Nájemce E", od: "2019-09-01", do: "2022-08-31", najem_mesic: 18000, kauce: 36000, zaloha_mesic: 2600, splatnost_den: 20 },
       { id: 6, byt_id: "holesovice", najemce: "Nájemce F", od: "2022-10-01", do: "2025-12-31", najem_mesic: 21000, kauce: 42000, zaloha_mesic: 2900, splatnost_den: 20 },
-      { id: 7, byt_id: "ricany", najemce: "Nájemce G", od: "2024-05-01", do: "2027-04-30", inflacni_dolozka: true, zvyseni_od: "2027-02-01", najem_mesic: 17000, kauce: 34000, zaloha_mesic: 2200, splatnost_den: 25 },
+      { id: 7, byt_id: "ricany", najemce: "Nájemce G", od: "2024-05-01", do: "2027-04-30", inflacni_dolozka: true, zvyseni_od: "2027-01-10", najem_mesic: 17000, kauce: 34000, zaloha_mesic: 2200, splatnost_den: 25 },
     ],
     najemne,
     // Ukázková vyúčtování (smyšlená čísla, stejná struktura jako skutečná)

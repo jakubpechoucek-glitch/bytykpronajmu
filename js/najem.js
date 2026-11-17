@@ -63,24 +63,17 @@
     return { ok: true, text: `ČSÚ, stažena ${F.fmtDatum(cpi.stazeno)}` };
   }
 
-  // Obecná (celková) inflace – o té mluví doložka ve smlouvách („inflace vyhlášená ČSÚ nebo ČNB“)
-  function posledniObecna(cpi) {
-    if (!cpi || !cpi.obecna || !cpi.obecna.length) return null;
-    const p = cpi.obecna[cpi.obecna.length - 1];
-    return { mesic: p.m, idx: p.idx, koef: p.idx / 100 };
-  }
-
   // ------------------------------------------------------------ inflační doložka (zvýšení po prvním roce)
   // Doložka (čl. 4.5): nájem je pevný první rok; po každém dalším roce může pronajímatel
   // zvýšit nájem o inflaci. Změna se dělá číselným dodatkem podepsaným oběma stranami.
   // Smlouva lhůtu pro oznámení nezná – níže jsou vnitřní pravidla aplikace:
-  const MESICE_ZACIT = 3;   // tolik měsíců před datem zvýšení se začne řešit
-  const MESICE_ODESLAT = 2; // tolik měsíců před datem zvýšení má být oznámení / dodatek odeslán
-
-  function pridejMesice(dt, m) {
-    const y = dt.getUTCFullYear(), mo = dt.getUTCMonth() + m;
-    const posledniDen = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate();
-    return new Date(Date.UTC(y, mo, Math.min(dt.getUTCDate(), posledniDen)));
+  const DNI_ZACIT = 60;   // tolik dní před datem zvýšení se začne řešit (upozornění)
+  const DNI_ODESLAT = 30; // tolik dní před datem zvýšení má být oznámení / dodatek odeslán
+  const pridejDny = (dt, n) => new Date(dt.getTime() + n * DEN);
+  // zvýšení o 1 rok od začátku smlouvy (29. 2. → 28. 2.)
+  function plusRok(dt) {
+    const y = dt.getUTCFullYear() + 1, m = dt.getUTCMonth();
+    return new Date(Date.UTC(y, m, Math.min(dt.getUTCDate(), new Date(Date.UTC(y, m + 1, 0)).getUTCDate())));
   }
 
   function dolozka(byt, data, cpi, dnes) {
@@ -88,11 +81,11 @@
     const p = F.pronajmyBytu(byt, data.pronajmy).find((x) => x.inflacni_dolozka && (!x.do || F.d(x.do) >= t));
     if (!p) return null;
     // první možné zvýšení: zadané datum, jinak první výročí začátku smlouvy
-    const datum = p.zvyseni_od ? F.d(p.zvyseni_od) : pridejMesice(F.d(p.od), 12);
+    const datum = p.zvyseni_od ? F.d(p.zvyseni_od) : plusRok(F.d(p.od));
     if (p.do && datum > F.d(p.do)) return null; // do konce smlouvy už zvýšení nenastane
     const iso = F.iso(datum);
     const najem = F.num(p.najem_mesic);
-    const zacit = pridejMesice(datum, -MESICE_ZACIT), odeslat = pridejMesice(datum, -MESICE_ODESLAT);
+    const zacit = pridejDny(datum, -DNI_ZACIT), odeslat = pridejDny(datum, -DNI_ODESLAT);
     // vyřešeno = je schválený / odeslaný návrh k tomuto datu, nebo už platí dodatek od tohoto data
     const navrh = (data.najem_navrhy || []).some((n) => n.byt_id === byt.id && String(n.plati_od).slice(0, 10) === iso && (n.stav === "schvaleno" || n.stav === "odeslano"));
     const dodatek = F.pronajmyBytu(byt, data.pronajmy).some((x) => String(x.od).slice(0, 10) === iso);
@@ -159,11 +152,6 @@
       varianty.push({ id: r.id, klic: zdroj, nazev: `${ZDROJE[zdroj] || zdroj}${r.poznamka ? ` (${r.poznamka})` : ""}`, castka: zaokr(c), kcM2: kc, rozdil: akt ? rozdil(c, akt.najem) : null, datum: r.datum, stare: stari > DNI_STARE_TRHU, stariDni: stari });
     }
     const dol = dolozka(byt, data, cpi, dnes);
-    const obecna = posledniObecna(cpi);
-    if (dol && akt && akt.najem && obecna) {
-      const c = akt.najem * obecna.koef;
-      varianty.push({ klic: "obecna", nazev: `Obecná inflace (ČSÚ, ${(obecna.idx - 100).toFixed(1).replace(".", ",")} % za ${F.fmtMesic(obecna.mesic + "-01")}) – tak zní doložka`, castka: zaokr(c), kcM2: plocha ? c / plocha : null, rozdil: rozdil(c, akt.najem) });
-    }
     const navrh = posledniNavrh(data.najem_navrhy || [], byt.id);
     const konci = akt && akt.dnuDoKonce !== null && akt.dnuDoKonce <= DNI_PRED_KONCEM;
     // návrh je schválený / odeslaný a ještě nezačal platit → není co řešit, jen čekat na podpis
@@ -221,7 +209,7 @@
     return out.filter((x) => !x.vyreseno && F.d(x.datum) <= hranice && (x.dni >= -60 || x.typ === "trh")).sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : 0));
   }
 
-  const Najem = { ZDROJE, DNI_PRED_KONCEM, DNI_STARE_TRHU, posledniIndex, posledniObecna, dolozka, upozorneniDolozky, terminy, stavCpi, terminyTrhu, TERMINY_TRHU, aktualniNajem, poslednTrh, posledniNavrh, podklad, poradiPodleKonce };
+  const Najem = { ZDROJE, DNI_PRED_KONCEM, DNI_ZACIT, DNI_ODESLAT, DNI_STARE_TRHU, posledniIndex, dolozka, upozorneniDolozky, terminy, stavCpi, terminyTrhu, TERMINY_TRHU, aktualniNajem, poslednTrh, posledniNavrh, podklad, poradiPodleKonce };
   root.Najem = Najem;
   if (typeof module !== "undefined") module.exports = Najem;
 })(typeof window !== "undefined" ? window : globalThis);
